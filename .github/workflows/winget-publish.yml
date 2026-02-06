@@ -99,8 +99,73 @@ jobs:
               --submit
           } else {
             Write-Host "Creating NEW winget package manifest..."
-            .\wingetcreate.exe new $url `
-              --version $version `
+
+            # Download installer to compute SHA256
+            $installerPath = "installer.msixbundle"
+            Invoke-WebRequest -Uri $url -OutFile $installerPath
+            $hash = (Get-FileHash -Path $installerPath -Algorithm SHA256).Hash
+            Write-Host "Installer SHA256: $hash"
+
+            # Create manifest directory structure
+            $pkgId = "ruslanlap.DefinitionForCommandPalette"
+            $manifestDir = "manifests/r/ruslanlap/DefinitionForCommandPalette/$version"
+            New-Item -ItemType Directory -Force -Path $manifestDir
+
+            # Version manifest
+            @"
+            PackageIdentifier: $pkgId
+            PackageVersion: $version
+            DefaultLocale: en-US
+            ManifestType: version
+            ManifestVersion: 1.6.0
+            "@ -replace '(?m)^\s{12}', '' | Set-Content "$manifestDir/$pkgId.yaml"
+
+            # Installer manifest
+            @"
+            PackageIdentifier: $pkgId
+            PackageVersion: $version
+            InstallerType: msix
+            Installers:
+              - Architecture: x64
+                InstallerUrl: $url
+                InstallerSha256: $hash
+                InstallerType: msix
+              - Architecture: arm64
+                InstallerUrl: $url
+                InstallerSha256: $hash
+                InstallerType: msix
+            ManifestType: installer
+            ManifestVersion: 1.6.0
+            "@ -replace '(?m)^\s{12}', '' | Set-Content "$manifestDir/$pkgId.installer.yaml"
+
+            # Default locale manifest
+            @"
+            PackageIdentifier: $pkgId
+            PackageVersion: $version
+            PackageLocale: en-US
+            Publisher: ruslanlap
+            PublisherUrl: https://github.com/ruslanlap
+            PackageName: Definition for Command Palette
+            PackageUrl: https://github.com/ruslanlap/CmdPal-Definition
+            License: MIT
+            LicenseUrl: https://github.com/ruslanlap/CmdPal-Definition/blob/main/LICENSE
+            ShortDescription: Dictionary lookup extension for Microsoft PowerToys Command Palette
+            Tags:
+              - command-palette
+              - dictionary
+              - definition
+              - powertoys
+              - extension
+            ManifestType: defaultLocale
+            ManifestVersion: 1.6.0
+            "@ -replace '(?m)^\s{12}', '' | Set-Content "$manifestDir/$pkgId.locale.en-US.yaml"
+
+            Write-Host "Generated manifests:"
+            Get-ChildItem -Path $manifestDir -Recurse | ForEach-Object { Write-Host $_.FullName }
+
+            # Submit manifests to winget-pkgs
+            .\wingetcreate.exe submit `
               --token $token `
-              --submit
+              --prtitle "New package: ruslanlap.DefinitionForCommandPalette version $version" `
+              $manifestDir
           }
