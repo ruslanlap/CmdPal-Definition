@@ -1,6 +1,27 @@
-# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.6.0.schema.json
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.6.0.schema.json
 PackageIdentifier: ruslanlap.DefinitionForCommandPalette
 PackageVersion: 1.0.0.0
-DefaultLocale: en-US
-ManifestType: version
+PackageLocale: en-US
+Publisher: ruslanlap
+PublisherUrl: https://github.com/ruslanlap
+PackageName: Definition for Command Palette
+PackageUrl: https://github.com/ruslanlap/CmdPal-Definition
+License: MIT
+LicenseUrl: https://github.com/ruslanlap/CmdPal-Definition/blob/main/LICENSE
+ShortDescription: Dictionary lookup extension for Microsoft PowerToys Command Palette
+Description: A Command Palette extension that provides dictionary definitions lookup. Search for word definitions directly from the PowerToys Command Palette.
+Tags:
+  - command-palette
+  - dictionary
+  - definition
+  - powertoys
+  - extension
+Installers:
+  - Architecture: x64
+    InstallerType: msix
+    InstallerUrl: https://github.com/ruslanlap/CmdPal-Definition/releases/download/v1.0.0/DefinitionForCommandPalette.msixbundle
+  - Architecture: arm64
+    InstallerType: msix
+    InstallerUrl: https://github.com/ruslanlap/CmdPal-Definition/releases/download/v1.0.0/DefinitionForCommandPalette.msixbundle
+ManifestType: singleton
 ManifestVersion: 1.6.0

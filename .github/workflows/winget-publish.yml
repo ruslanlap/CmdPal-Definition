@@ -11,6 +11,11 @@ on:
         description: 'Release tag to publish (e.g. v1.0.0)'
         required: true
         type: string
+      use_new:
+        description: 'Use "new" instead of "update" (for initial submission only)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -24,41 +29,79 @@ jobs:
        github.event.workflow_run.event == 'release')
 
     steps:
-      - name: Get version from release
-        id: get_version
+      - name: Get release tag
+        id: get_release
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ github.event.inputs.release_tag }}"
           else
-            # workflow_run: extract tag from the head branch (e.g. v1.2.3)
-            TAG="${{ github.event.workflow_run.head_branch }}"
+            # workflow_run triggered by a release — fetch the latest release tag
+            TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name')
           fi
           VERSION="${TAG#v}"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "TAG=$TAG" >> $GITHUB_OUTPUT
+          echo "Resolved tag: $TAG, version: $VERSION"
 
       - name: Verify release asset exists
         shell: bash
         run: |
-          URL="https://github.com/ruslanlap/CmdPal-Definition/releases/download/${{ steps.get_version.outputs.TAG }}/DefinitionForCommandPalette.msixbundle"
+          URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.get_release.outputs.TAG }}/DefinitionForCommandPalette.msixbundle"
           echo "Checking: $URL"
-          curl --fail --silent --head -L "$URL" || { echo "::error::Release asset not found: $URL"; exit 1; }
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "$URL")
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "302" ]; then
+            echo "::error::Release asset not found (HTTP $STATUS): $URL"
+            exit 1
+          fi
+          echo "Asset exists (HTTP $STATUS)"
 
       - name: Install wingetcreate
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://aka.ms/wingetcreate/latest" -OutFile wingetcreate.exe
 
-      - name: Update and submit WinGet manifest
+      - name: Check if package exists in winget-pkgs
+        id: check_existing
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Check if the package manifest directory exists in winget-pkgs
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+            "https://api.github.com/repos/microsoft/winget-pkgs/contents/manifests/r/ruslanlap/DefinitionForCommandPalette")
+          if [ "$STATUS" = "200" ]; then
+            echo "EXISTS=true" >> $GITHUB_OUTPUT
+            echo "Package already exists in winget-pkgs — will use 'update'"
+          else
+            echo "EXISTS=false" >> $GITHUB_OUTPUT
+            echo "Package NOT found in winget-pkgs — will use 'new'"
+          fi
+
+      - name: Submit to WinGet
         shell: pwsh
         run: |
-          $version = "${{ steps.get_version.outputs.VERSION }}"
-          $tag = "${{ steps.get_version.outputs.TAG }}"
-          $url = "https://github.com/ruslanlap/CmdPal-Definition/releases/download/${tag}/DefinitionForCommandPalette.msixbundle"
+          $version = "${{ steps.get_release.outputs.VERSION }}"
+          $tag = "${{ steps.get_release.outputs.TAG }}"
+          $url = "https://github.com/${{ github.repository }}/releases/download/${tag}/DefinitionForCommandPalette.msixbundle"
+          $token = "${{ secrets.WINGET_GITHUB_TOKEN }}"
 
-          .\wingetcreate.exe update "ruslanlap.DefinitionForCommandPalette" `
-            --version $version `
-            --urls $url `
-            --token "${{ secrets.WINGET_GITHUB_TOKEN }}" `
-            --submit
+          $exists = "${{ steps.check_existing.outputs.EXISTS }}" -eq "true"
+          $forceNew = "${{ github.event.inputs.use_new }}" -eq "true"
+
+          if ($exists -and -not $forceNew) {
+            Write-Host "Updating existing winget package manifest..."
+            .\wingetcreate.exe update "ruslanlap.DefinitionForCommandPalette" `
+              --version $version `
+              --urls $url `
+              --token $token `
+              --submit
+          } else {
+            Write-Host "Creating NEW winget package manifest..."
+            .\wingetcreate.exe new $url `
+              --version $version `
+              --token $token `
+              --submit
+          }

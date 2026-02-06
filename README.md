@@ -63,7 +63,23 @@ Built as a CmdPal extension for the PowerToys Command Palette.
   - Windows App SDK / WinUI 3 tooling
 - **Developer Mode** enabled on Windows (Settings > Update & Security > For developers)
 
-### Method 1: Deploy via Visual Studio (Recommended)
+### Method 1: Install via WinGet (Recommended)
+
+The easiest way to install the extension:
+
+```powershell
+winget install ruslanlap.DefinitionForCommandPalette
+```
+
+After installation, restart PowerToys for the extension to appear in Command Palette.
+
+To update to the latest version:
+
+```powershell
+winget upgrade ruslanlap.DefinitionForCommandPalette
+```
+
+### Method 2: Deploy via Visual Studio
 
 This is the simplest method for development and personal use.
 
@@ -93,7 +109,7 @@ This is the simplest method for development and personal use.
 
 7. Open **Command Palette** and the "Definition" extension should appear.
 
-### Method 2: Build and Deploy from Command Line
+### Method 3: Build and Deploy from Command Line
 
 1. **Clone and build:**
 
@@ -124,7 +140,7 @@ This is the simplest method for development and personal use.
 
 4. **Restart PowerToys** for the extension to be detected.
 
-### Method 3: Sideload with Self-Signed Certificate
+### Method 4: Sideload with Self-Signed Certificate
 
 For distributing to other machines without the Microsoft Store:
 
