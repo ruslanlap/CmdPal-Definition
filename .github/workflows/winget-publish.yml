@@ -25,8 +25,7 @@ jobs:
     runs-on: windows-latest
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'release')
+      github.event.workflow_run.event == 'release'
 
     steps:
       - name: Get release tag
