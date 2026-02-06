@@ -183,7 +183,7 @@ jobs:
 
       - name: Publish to Microsoft Store
         run: |
-          msstore publish "bundle/DefinitionForCommandPalette.msixbundle" --id 9NTTBMD2DHN0
+          msstore publish "bundle/DefinitionForCommandPalette.msixbundle" --id 9NMJ8S70L69M
         shell: pwsh
 
   upload-to-release:

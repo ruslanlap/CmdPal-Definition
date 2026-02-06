@@ -1,8 +1,22 @@
-# Definition for Command Palette
+<div align="center">
+     <img src="DefinitionExtension/Assets/StoreLogo.png" alt="Logo"/>
+     <div><h1>Definition<br><p>For PowerToys Command Palette</p></h1></div>
+     <a href="https://apps.microsoft.com/detail/9NMJ8S70L69M?referrer=appbadge&mode=direct">
+		 <img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200"/>
+     </a>
+	 <br/>
+     <a href="https://github.com/ruslanlap/CmdPal-Definition/releases/latest">
+		 <img src="https://img.shields.io/github/v/release/ruslanlap/CmdPal-Definition" alt="Latest Release"/>
+     </a>
+	 <br/>
+     <b>A Command Palette extension that provides instant word definitions, phonetics, synonyms, antonyms, and usage examples</b>
+     <br/><br/>
+	 <img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/ruslanlap/CmdPal-Definition/total">
+     <img alt="GitHub Downloads (all assets, latest release)" src="https://img.shields.io/github/downloads/ruslanlap/CmdPal-Definition/latest/total">
+     <img alt="GitHub License" src="https://img.shields.io/github/license/ruslanlap/CmdPal-Definition">
+</div>
 
-A **PowerToys Command Palette** extension that provides instant word definitions, phonetics, synonyms, antonyms, and usage examples — directly from the Command Palette.
-
-Built as a CmdPal extension for the PowerToys Command Palette.
+<br/>
 
 ## Features
 
