@@ -124,6 +124,43 @@ jobs:
           & $env:MAKEAPPX bundle /d bundle-input /p bundle-output/DefinitionForCommandPalette.msixbundle /o
           Write-Host "Bundle created successfully"
 
+      - name: Find signtool
+        shell: pwsh
+        run: |
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object { [version]$_.Directory.Parent.Name } -Descending |
+            Select-Object -First 1
+          if ($signtool) {
+            Write-Host "Found signtool at: $($signtool.FullName)"
+            echo "SIGNTOOL=$($signtool.FullName)" >> $env:GITHUB_ENV
+          } else {
+            Write-Error "signtool.exe not found"
+            exit 1
+          }
+
+      - name: Create signing certificate
+        id: create_cert
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject "CN=11D55891-40B3-4190-95B7-CDE591AABEA5" `
+            -KeyUsage DigitalSignature `
+            -FriendlyName "CmdPal Definition Signing Certificate" `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+          $thumbprint = $cert.Thumbprint
+          $pfxPassword = ConvertTo-SecureString -String "MsixSignTemp!" -Force -AsPlainText
+          Export-PfxCertificate -Cert "Cert:\CurrentUser\My\$thumbprint" -FilePath signing.pfx -Password $pfxPassword | Out-Null
+          echo "CERT_THUMBPRINT=$thumbprint" >> $env:GITHUB_OUTPUT
+          Write-Host "Certificate created with thumbprint: $thumbprint"
+
+      - name: Sign MSIX Bundle
+        shell: pwsh
+        run: |
+          & $env:SIGNTOOL sign /f signing.pfx /p "MsixSignTemp!" /fd SHA256 /td SHA256 bundle-output/DefinitionForCommandPalette.msixbundle
+          Write-Host "Bundle signed successfully"
+
       - name: Upload MSIX Bundle
         uses: actions/upload-artifact@v4
         with:

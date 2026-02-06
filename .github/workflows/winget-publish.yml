@@ -79,6 +79,33 @@ jobs:
             echo "Package NOT found in winget-pkgs — will use 'new'"
           fi
 
+      - name: Download and analyze MSIX bundle
+        id: analyze_msix
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.get_release.outputs.TAG }}"
+          $url = "https://github.com/${{ github.repository }}/releases/download/${tag}/DefinitionForCommandPalette.msixbundle"
+
+          $installerPath = "installer.msixbundle"
+          Invoke-WebRequest -Uri $url -OutFile $installerPath
+          $hash = (Get-FileHash -Path $installerPath -Algorithm SHA256).Hash
+          Write-Host "Installer SHA256: $hash"
+          echo "INSTALLER_SHA256=$hash" >> $env:GITHUB_OUTPUT
+
+          # Extract SignatureSha256 from the signed MSIX bundle
+          $extractDir = "msix-extract"
+          New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
+          Expand-Archive -Path $installerPath -DestinationPath $extractDir -Force
+          $sigFile = Join-Path $extractDir "AppxSignature.p7x"
+          if (Test-Path $sigFile) {
+            $sigHash = (Get-FileHash -Path $sigFile -Algorithm SHA256).Hash
+            Write-Host "Signature SHA256: $sigHash"
+            echo "SIGNATURE_SHA256=$sigHash" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "::warning::No AppxSignature.p7x found - bundle may not be signed"
+            echo "SIGNATURE_SHA256=" >> $env:GITHUB_OUTPUT
+          }
+
       - name: Submit to WinGet
         shell: pwsh
         run: |
@@ -86,6 +113,8 @@ jobs:
           $tag = "${{ steps.get_release.outputs.TAG }}"
           $url = "https://github.com/${{ github.repository }}/releases/download/${tag}/DefinitionForCommandPalette.msixbundle"
           $token = "${{ secrets.WINGET_GITHUB_TOKEN }}"
+          $hash = "${{ steps.analyze_msix.outputs.INSTALLER_SHA256 }}"
+          $sigHash = "${{ steps.analyze_msix.outputs.SIGNATURE_SHA256 }}"
 
           $exists = "${{ steps.check_existing.outputs.EXISTS }}" -eq "true"
           $forceNew = "${{ github.event.inputs.use_new }}" -eq "true"
@@ -100,12 +129,8 @@ jobs:
           } else {
             Write-Host "Creating NEW winget package manifest..."
 
-            $installerPath = "installer.msixbundle"
-            Invoke-WebRequest -Uri $url -OutFile $installerPath
-            $hash = (Get-FileHash -Path $installerPath -Algorithm SHA256).Hash
-            Write-Host "Installer SHA256: $hash"
-
             $pkgId = "ruslanlap.DefinitionForCommandPalette"
+            $pfn = "ruslanlap.DefinitionforCommandPalette_kkk6yee1n3hkw"
             $manifestDir = "manifests\r\ruslanlap\DefinitionForCommandPalette\$version"
             New-Item -ItemType Directory -Force -Path $manifestDir | Out-Null
 
@@ -118,22 +143,33 @@ jobs:
             ) -join "`n"
             [IO.File]::WriteAllText("$PWD\$manifestDir\$pkgId.yaml", $versionYaml + "`n")
 
-            $installerYaml = @(
+            # Build installer YAML with PackageFamilyName and optional SignatureSha256
+            $installerLines = @(
               "PackageIdentifier: $pkgId"
               "PackageVersion: $version"
               "InstallerType: msix"
+              "PackageFamilyName: $pfn"
               "Installers:"
-              "  - Architecture: x64"
-              "    InstallerUrl: $url"
-              "    InstallerSha256: $hash"
-              "    InstallerType: msix"
-              "  - Architecture: arm64"
-              "    InstallerUrl: $url"
-              "    InstallerSha256: $hash"
-              "    InstallerType: msix"
+              "- Architecture: x64"
+              "  InstallerUrl: $url"
+              "  InstallerSha256: $hash"
+            )
+            if ($sigHash) {
+              $installerLines += "  SignatureSha256: $sigHash"
+            }
+            $installerLines += @(
+              "- Architecture: arm64"
+              "  InstallerUrl: $url"
+              "  InstallerSha256: $hash"
+            )
+            if ($sigHash) {
+              $installerLines += "  SignatureSha256: $sigHash"
+            }
+            $installerLines += @(
               "ManifestType: installer"
               "ManifestVersion: 1.6.0"
-            ) -join "`n"
+            )
+            $installerYaml = $installerLines -join "`n"
             [IO.File]::WriteAllText("$PWD\$manifestDir\$pkgId.installer.yaml", $installerYaml + "`n")
 
             $localeYaml = @(
