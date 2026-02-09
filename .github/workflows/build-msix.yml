@@ -81,6 +81,9 @@ jobs:
   bundle:
     needs: build
     runs-on: windows-latest
+    env:
+      SIGNING_CERT_BASE64: ${{ secrets.SIGNING_CERT_BASE64 }}
+      SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
 
     steps:
       - name: Download x64 MSIX
@@ -96,16 +99,16 @@ jobs:
           path: msix-arm64
 
       - name: Prepare signing certificate
-        if: ${{ secrets.SIGNING_CERT_BASE64 != '' }}
+        if: ${{ env.SIGNING_CERT_BASE64 != '' }}
         shell: pwsh
         run: |
-          $certBytes = [System.Convert]::FromBase64String("${{ secrets.SIGNING_CERT_BASE64 }}")
+          $certBytes = [System.Convert]::FromBase64String("${{ env.SIGNING_CERT_BASE64 }}")
           $certPath = "${{ github.workspace }}\signing-cert.pfx"
           [System.IO.File]::WriteAllBytes($certPath, $certBytes)
           echo "SIGNING_CERT_PATH=$certPath" >> $env:GITHUB_ENV
 
       - name: Find signtool
-        if: ${{ secrets.SIGNING_CERT_BASE64 != '' }}
+        if: ${{ env.SIGNING_CERT_BASE64 != '' }}
         shell: pwsh
         run: |
           $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
@@ -149,10 +152,10 @@ jobs:
           Write-Host "Bundle created successfully"
 
       - name: Sign MSIX artifacts
-        if: ${{ secrets.SIGNING_CERT_BASE64 != '' }}
+        if: ${{ env.SIGNING_CERT_BASE64 != '' }}
         shell: pwsh
         run: |
-          $password = "${{ secrets.SIGNING_CERT_PASSWORD }}"
+          $password = "${{ env.SIGNING_CERT_PASSWORD }}"
           $timestamp = "http://timestamp.digicert.com"
 
           & $env:SIGNTOOL sign /fd SHA256 /a /f "$env:SIGNING_CERT_PATH" /p $password /tr $timestamp /td SHA256 "bundle-output\DefinitionForCommandPalette.msixbundle"
