@@ -135,8 +135,6 @@ jobs:
           $tag = "${{ steps.get_release.outputs.TAG }}"
           $url = "https://github.com/${{ github.repository }}/releases/download/${tag}/DefinitionForCommandPalette.msixbundle"
           $token = "${{ secrets.WINGET_GITHUB_TOKEN }}"
-          $hash = "${{ steps.analyze_msix.outputs.INSTALLER_SHA256 }}"
-          $sigHash = "${{ steps.analyze_msix.outputs.SIGNATURE_SHA256 }}"
 
           $exists = "${{ steps.check_existing.outputs.EXISTS }}" -eq "true"
           $forceNew = "${{ github.event.inputs.use_new }}" -eq "true"
@@ -150,80 +148,9 @@ jobs:
               --submit
           } else {
             Write-Host "Creating NEW winget package manifest..."
-
-            $pkgId = "ruslanlap.DefinitionForCommandPalette"
-            $pfn = "ruslanlap.DefinitionforCommandPalette_kkk6yee1n3hkw"
-            $manifestDir = "manifests\r\ruslanlap\DefinitionForCommandPalette\$version"
-            New-Item -ItemType Directory -Force -Path $manifestDir | Out-Null
-
-            $versionYaml = @(
-              "PackageIdentifier: $pkgId"
-              "PackageVersion: $version"
-              "DefaultLocale: en-US"
-              "ManifestType: version"
-              "ManifestVersion: 1.6.0"
-            ) -join "`n"
-            [IO.File]::WriteAllText("$PWD\$manifestDir\$pkgId.yaml", $versionYaml + "`n")
-
-            # Build installer YAML with PackageFamilyName and optional SignatureSha256
-            $installerLines = @(
-              "PackageIdentifier: $pkgId"
-              "PackageVersion: $version"
-              "InstallerType: msix"
-              "PackageFamilyName: $pfn"
-              "Installers:"
-              "- Architecture: x64"
-              "  InstallerUrl: $url"
-              "  InstallerSha256: $hash"
-            )
-            if ($sigHash) {
-              $installerLines += "  SignatureSha256: $sigHash"
-            }
-            $installerLines += @(
-              "- Architecture: arm64"
-              "  InstallerUrl: $url"
-              "  InstallerSha256: $hash"
-            )
-            if ($sigHash) {
-              $installerLines += "  SignatureSha256: $sigHash"
-            }
-            $installerLines += @(
-              "ManifestType: installer"
-              "ManifestVersion: 1.6.0"
-            )
-            $installerYaml = $installerLines -join "`n"
-            [IO.File]::WriteAllText("$PWD\$manifestDir\$pkgId.installer.yaml", $installerYaml + "`n")
-
-            $localeYaml = @(
-              "PackageIdentifier: $pkgId"
-              "PackageVersion: $version"
-              "PackageLocale: en-US"
-              "Publisher: ruslanlap"
-              "PublisherUrl: https://github.com/ruslanlap"
-              "PackageName: Definition for Command Palette"
-              "PackageUrl: https://github.com/ruslanlap/CmdPal-Definition"
-              "License: MIT"
-              "LicenseUrl: https://github.com/ruslanlap/CmdPal-Definition/blob/main/LICENSE"
-              "ShortDescription: Dictionary lookup extension for Microsoft PowerToys Command Palette"
-              "Tags:"
-              "  - command-palette"
-              "  - dictionary"
-              "  - definition"
-              "  - powertoys"
-              "  - extension"
-              "ManifestType: defaultLocale"
-              "ManifestVersion: 1.6.0"
-            ) -join "`n"
-            [IO.File]::WriteAllText("$PWD\$manifestDir\$pkgId.locale.en-US.yaml", $localeYaml + "`n")
-
-            Write-Host "Generated manifests:"
-            Get-ChildItem -Path $manifestDir -Recurse | ForEach-Object {
-              Write-Host "--- $($_.Name) ---"
-              Get-Content $_.FullName | Write-Host
-            }
-
-            .\wingetcreate.exe submit `
+            .\wingetcreate.exe new $url `
+              --version $version `
               --token $token `
-              --prtitle "New package: ruslanlap.DefinitionForCommandPalette version $version" `
-              $manifestDir
+              --submit `
+              --prtitle "New package: ruslanlap.DefinitionForCommandPalette version $version"
           }
