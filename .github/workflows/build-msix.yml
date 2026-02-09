@@ -158,14 +158,14 @@ jobs:
           $password = "${{ env.SIGNING_CERT_PASSWORD }}"
           $timestamp = "http://timestamp.digicert.com"
 
-          & $env:SIGNTOOL sign /fd SHA256 /a /f "$env:SIGNING_CERT_PATH" /p $password /tr $timestamp /td SHA256 "bundle-output\DefinitionForCommandPalette.msixbundle"
+          & $env:SIGNTOOL sign /fd SHA256 /f "$env:SIGNING_CERT_PATH" /p $password /tr $timestamp /td SHA256 "bundle-output\DefinitionForCommandPalette.msixbundle"
 
           Get-ChildItem -Path msix-x64 -Filter "*.msix" | ForEach-Object {
-            & $env:SIGNTOOL sign /fd SHA256 /a /f "$env:SIGNING_CERT_PATH" /p $password /tr $timestamp /td SHA256 $_.FullName
+            & $env:SIGNTOOL sign /fd SHA256 /f "$env:SIGNING_CERT_PATH" /p $password /tr $timestamp /td SHA256 $_.FullName
           }
 
           Get-ChildItem -Path msix-arm64 -Filter "*.msix" | ForEach-Object {
-            & $env:SIGNTOOL sign /fd SHA256 /a /f "$env:SIGNING_CERT_PATH" /p $password /tr $timestamp /td SHA256 $_.FullName
+            & $env:SIGNTOOL sign /fd SHA256 /f "$env:SIGNING_CERT_PATH" /p $password /tr $timestamp /td SHA256 $_.FullName
           }
 
       - name: Upload MSIX Bundle

@@ -40,10 +40,10 @@ jobs:
             # workflow_run triggered by a release — fetch the latest release tag
             TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name')
           fi
-          VERSION="${TAG#v}"
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          TAG_VERSION="${TAG#v}"
+          echo "TAG_VERSION=$TAG_VERSION" >> $GITHUB_OUTPUT
           echo "TAG=$TAG" >> $GITHUB_OUTPUT
-          echo "Resolved tag: $TAG, version: $VERSION"
+          echo "Resolved tag: $TAG, tag version: $TAG_VERSION"
 
       - name: Verify release asset exists
         shell: bash
@@ -84,6 +84,7 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ steps.get_release.outputs.TAG }}"
+          $tagVersion = "${{ steps.get_release.outputs.TAG_VERSION }}"
           $url = "https://github.com/${{ github.repository }}/releases/download/${tag}/DefinitionForCommandPalette.msixbundle"
 
           $installerPath = "installer.msixbundle"
@@ -106,10 +107,31 @@ jobs:
             echo "SIGNATURE_SHA256=" >> $env:GITHUB_OUTPUT
           }
 
+          $bundleVersion = $null
+          $bundleManifest = Join-Path $extractDir "AppxMetadata\AppxBundleManifest.xml"
+          if (Test-Path $bundleManifest) {
+            [xml]$bundleXml = Get-Content $bundleManifest
+            $bundleVersion = $bundleXml.Bundle.Identity.Version
+          } else {
+            $appxManifest = Get-ChildItem -Path $extractDir -Filter "AppxManifest.xml" -Recurse | Select-Object -First 1
+            if ($appxManifest) {
+              [xml]$appxXml = Get-Content $appxManifest.FullName
+              $bundleVersion = $appxXml.Package.Identity.Version
+            }
+          }
+
+          if (-not $bundleVersion) {
+            Write-Host "::warning::Could not read bundle version; falling back to tag version $tagVersion"
+            $bundleVersion = $tagVersion
+          }
+
+          Write-Host "Bundle version: $bundleVersion"
+          echo "PACKAGE_VERSION=$bundleVersion" >> $env:GITHUB_OUTPUT
+
       - name: Submit to WinGet
         shell: pwsh
         run: |
-          $version = "${{ steps.get_release.outputs.VERSION }}"
+          $version = "${{ steps.analyze_msix.outputs.PACKAGE_VERSION }}"
           $tag = "${{ steps.get_release.outputs.TAG }}"
           $url = "https://github.com/${{ github.repository }}/releases/download/${tag}/DefinitionForCommandPalette.msixbundle"
           $token = "${{ secrets.WINGET_GITHUB_TOKEN }}"
