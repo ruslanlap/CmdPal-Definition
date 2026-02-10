@@ -107,26 +107,37 @@ jobs:
             echo "SIGNATURE_SHA256=" >> $env:GITHUB_OUTPUT
           }
 
-          $bundleVersion = $null
-          $bundleManifest = Join-Path $extractDir "AppxMetadata\AppxBundleManifest.xml"
-          if (Test-Path $bundleManifest) {
-            [xml]$bundleXml = Get-Content $bundleManifest
-            $bundleVersion = $bundleXml.Bundle.Identity.Version
-          } else {
-            $appxManifest = Get-ChildItem -Path $extractDir -Filter "AppxManifest.xml" -Recurse | Select-Object -First 1
-            if ($appxManifest) {
-              [xml]$appxXml = Get-Content $appxManifest.FullName
-              $bundleVersion = $appxXml.Package.Identity.Version
+          # Read package version from the individual MSIX inside the bundle
+          # (Bundle.Identity.Version is auto-generated and doesn't match the app version)
+          $packageVersion = $null
+          $msixFile = Get-ChildItem -Path $extractDir -Filter "*.msix" | Select-Object -First 1
+          if ($msixFile) {
+            $msixExtractDir = Join-Path $extractDir "msix-inner"
+            New-Item -ItemType Directory -Force -Path $msixExtractDir | Out-Null
+            Expand-Archive -Path $msixFile.FullName -DestinationPath $msixExtractDir -Force
+            $appxManifest = Join-Path $msixExtractDir "AppxManifest.xml"
+            if (Test-Path $appxManifest) {
+              [xml]$appxXml = Get-Content $appxManifest
+              $packageVersion = $appxXml.Package.Identity.Version
             }
           }
 
-          if (-not $bundleVersion) {
-            Write-Host "::warning::Could not read bundle version; falling back to tag version $tagVersion"
-            $bundleVersion = $tagVersion
+          if (-not $packageVersion) {
+            # Fallback: try bundle manifest, then tag version
+            $bundleManifest = Join-Path $extractDir "AppxMetadata\AppxBundleManifest.xml"
+            if (Test-Path $bundleManifest) {
+              [xml]$bundleXml = Get-Content $bundleManifest
+              $packageVersion = $bundleXml.Bundle.Identity.Version
+            }
           }
 
-          Write-Host "Bundle version: $bundleVersion"
-          echo "PACKAGE_VERSION=$bundleVersion" >> $env:GITHUB_OUTPUT
+          if (-not $packageVersion) {
+            Write-Host "::warning::Could not read package version; falling back to tag version $tagVersion"
+            $packageVersion = $tagVersion
+          }
+
+          Write-Host "Package version: $packageVersion"
+          echo "PACKAGE_VERSION=$packageVersion" >> $env:GITHUB_OUTPUT
 
       - name: Submit to WinGet
         shell: pwsh

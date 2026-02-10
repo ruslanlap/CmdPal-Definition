@@ -11,7 +11,7 @@
   <Identity
     Name="ruslanlap.DefinitionforCommandPalette"
     Publisher="CN=11D55891-40B3-4190-95B7-CDE591AABEA5"
-    Version="1.0.0.0" />
+    Version="1.0.1.0" />
 
   <Properties>
     <DisplayName>Definition for Command Palette</DisplayName>
