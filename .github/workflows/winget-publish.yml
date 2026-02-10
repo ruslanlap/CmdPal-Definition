@@ -43,18 +43,29 @@ jobs:
             if gh api repos/${{ github.repository }}/releases/tags/$INPUT_TAG >/dev/null 2>&1; then
               TAG="$INPUT_TAG"
               echo "Found release with tag: $TAG"
-            # Try with 'v' prefix if not present
-            elif [[ ! "$INPUT_TAG" =~ ^v ]] && gh api repos/${{ github.repository }}/releases/tags/v$INPUT_TAG >/dev/null 2>&1; then
-              TAG="v$INPUT_TAG"
-              echo "Found release with tag: $TAG (added 'v' prefix)"
-            # Try without 'v' prefix if present
-            elif [[ "$INPUT_TAG" =~ ^v ]] && gh api repos/${{ github.repository }}/releases/tags/${INPUT_TAG#v} >/dev/null 2>&1; then
-              TAG="${INPUT_TAG#v}"
-              echo "Found release with tag: $TAG (removed 'v' prefix)"
             else
-              echo "::error::No release found for tag '$INPUT_TAG' or 'v$INPUT_TAG' or '${INPUT_TAG#v}'"
-              echo "::error::Please check the release tag and try again."
-              exit 1
+              # Check if tag starts with 'v' to try appropriate variations
+              if [[ "$INPUT_TAG" =~ ^v ]]; then
+                # Tag has 'v' prefix - try without it
+                if gh api repos/${{ github.repository }}/releases/tags/${INPUT_TAG#v} >/dev/null 2>&1; then
+                  TAG="${INPUT_TAG#v}"
+                  echo "Found release with tag: $TAG (removed 'v' prefix)"
+                else
+                  echo "::error::No release found for tag '$INPUT_TAG' or '${INPUT_TAG#v}'"
+                  echo "::error::Please check the release tag and try again."
+                  exit 1
+                fi
+              else
+                # Tag doesn't have 'v' prefix - try with it
+                if gh api repos/${{ github.repository }}/releases/tags/v$INPUT_TAG >/dev/null 2>&1; then
+                  TAG="v$INPUT_TAG"
+                  echo "Found release with tag: $TAG (added 'v' prefix)"
+                else
+                  echo "::error::No release found for tag '$INPUT_TAG' or 'v$INPUT_TAG'"
+                  echo "::error::Please check the release tag and try again."
+                  exit 1
+                fi
+              fi
             fi
           else
             # workflow_run triggered by a release — fetch the latest release tag
