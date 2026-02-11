@@ -186,6 +186,24 @@ jobs:
           & $env:SIGNTOOL sign /f signing.pfx /p "MsixSignTemp!" /fd SHA256 /td SHA256 bundle-output/DefinitionForCommandPalette.msixbundle
           Write-Host "Bundle signed successfully"
 
+      - name: Verify signature and extract SignatureSha256
+        shell: pwsh
+        run: |
+          $bundlePath = "bundle-output/DefinitionForCommandPalette.msixbundle"
+          $extractDir = "bundle-verify"
+          New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
+          Expand-Archive -Path $bundlePath -DestinationPath $extractDir -Force
+          $sigFile = Join-Path $extractDir "AppxSignature.p7x"
+          if (Test-Path $sigFile) {
+            $sigHash = (Get-FileHash -Path $sigFile -Algorithm SHA256).Hash
+            Write-Host "SignatureSha256: $sigHash"
+            $installerHash = (Get-FileHash -Path $bundlePath -Algorithm SHA256).Hash
+            Write-Host "InstallerSha256: $installerHash"
+          } else {
+            Write-Error "AppxSignature.p7x not found - signing may have failed!"
+            exit 1
+          }
+
       - name: Upload MSIX Bundle artifact
         uses: actions/upload-artifact@v4
         with:
@@ -226,7 +244,6 @@ jobs:
   upload-to-release:
     needs: bundle
     runs-on: ubuntu-latest
-    if: github.event_name == 'release'
 
     steps:
       - name: Download MSIX Bundle
@@ -240,9 +257,30 @@ jobs:
           cd bundle
           sha256sum DefinitionForCommandPalette.msixbundle > DefinitionForCommandPalette.msixbundle.sha256
 
-      - name: Upload to GitHub Release
+      - name: Delete existing release assets (to replace with signed versions)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Determine the release tag
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            # For workflow_dispatch, get the latest release tag
+            TAG=$(gh api "repos/${{ github.repository }}/releases/latest" --jq '.tag_name')
+          fi
+          echo "Deleting existing assets for release tag: $TAG"
+          # Get asset IDs and delete them
+          gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq '.assets[] | "\(.id) \(.name)"' | while read -r ASSET_ID ASSET_NAME; do
+            echo "Deleting asset: $ASSET_NAME (ID: $ASSET_ID)"
+            gh api -X DELETE "repos/${{ github.repository }}/releases/assets/$ASSET_ID" || true
+          done
+          # Store tag for use in upload step
+          echo "RELEASE_TAG=$TAG" >> $GITHUB_ENV
+
+      - name: Upload signed bundle to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           files: |
             bundle/DefinitionForCommandPalette.msixbundle
             bundle/DefinitionForCommandPalette.msixbundle.sha256
