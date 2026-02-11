@@ -35,27 +35,67 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ github.event.inputs.release_tag }}"
+            INPUT_TAG="${{ github.event.inputs.release_tag }}"
+            echo "Input tag from workflow_dispatch: $INPUT_TAG"
+            
+            # Validate the tag exists and find the correct format
+            # Try the input tag as-is first
+            if gh api repos/${{ github.repository }}/releases/tags/$INPUT_TAG >/dev/null 2>&1; then
+              TAG="$INPUT_TAG"
+              echo "Found release with tag: $TAG"
+            else
+              # Check if tag starts with 'v' to try appropriate variations
+              if [[ "$INPUT_TAG" =~ ^v ]]; then
+                # Tag has 'v' prefix - try without it
+                if gh api repos/${{ github.repository }}/releases/tags/${INPUT_TAG#v} >/dev/null 2>&1; then
+                  TAG="${INPUT_TAG#v}"
+                  echo "Found release with tag: $TAG (removed 'v' prefix)"
+                else
+                  echo "::error::No release found for tag '$INPUT_TAG' or '${INPUT_TAG#v}'"
+                  echo "::error::Please check the release tag and try again."
+                  exit 1
+                fi
+              else
+                # Tag doesn't have 'v' prefix - try with it
+                if gh api repos/${{ github.repository }}/releases/tags/v$INPUT_TAG >/dev/null 2>&1; then
+                  TAG="v$INPUT_TAG"
+                  echo "Found release with tag: $TAG (added 'v' prefix)"
+                else
+                  echo "::error::No release found for tag '$INPUT_TAG' or 'v$INPUT_TAG'"
+                  echo "::error::Please check the release tag and try again."
+                  exit 1
+                fi
+              fi
+            fi
           else
             # workflow_run triggered by a release — fetch the latest release tag
             TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name')
+            echo "Fetched latest release tag: $TAG"
           fi
+          
+          # Strip 'v' prefix for version number used by WinGet
           TAG_VERSION="${TAG#v}"
+          
           echo "TAG_VERSION=$TAG_VERSION" >> $GITHUB_OUTPUT
           echo "TAG=$TAG" >> $GITHUB_OUTPUT
-          echo "Resolved tag: $TAG, tag version: $TAG_VERSION"
+          echo "✓ Resolved tag: $TAG"
+          echo "✓ WinGet version: $TAG_VERSION"
 
       - name: Verify release asset exists
         shell: bash
         run: |
-          URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.get_release.outputs.TAG }}/DefinitionForCommandPalette.msixbundle"
-          echo "Checking: $URL"
+          TAG="${{ steps.get_release.outputs.TAG }}"
+          URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/DefinitionForCommandPalette.msixbundle"
+          echo "Verifying asset for release tag: $TAG"
+          echo "Checking URL: $URL"
           STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "$URL")
           if [ "$STATUS" != "200" ] && [ "$STATUS" != "302" ]; then
             echo "::error::Release asset not found (HTTP $STATUS): $URL"
+            echo "::error::Tag used: $TAG"
+            echo "::error::Please verify the release exists and has the asset attached."
             exit 1
           fi
-          echo "Asset exists (HTTP $STATUS)"
+          echo "✓ Asset verified (HTTP $STATUS)"
 
       - name: Install wingetcreate
         shell: pwsh
