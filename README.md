@@ -66,7 +66,7 @@ Type a word, get results. That simple.
 ### Option 1 — WinGet (Recommended)
 
 ```powershell
-winget install ruslanlap.DefinitionForCommandPalette
+   winget install "Definition for Command Palette"
 ```
 
 ### Option 2 — Microsoft Store
@@ -88,13 +88,13 @@ Add-AppPackage -Path DefinitionForCommandPalette.msixbundle
 ### Updating
 
 ```powershell
-winget upgrade ruslanlap.DefinitionForCommandPalette
+winget upgrade"Definition for Command Palette"
 ```
 
 ### Uninstalling
 
 ```powershell
-winget uninstall ruslanlap.DefinitionForCommandPalette
+winget uninstall "Definition for Command Palette"
 ```
 
 Or remove via **Settings → Apps → Installed apps**.
