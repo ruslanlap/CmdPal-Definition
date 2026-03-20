@@ -32,12 +32,14 @@ jobs:
           SELLER_ID: ${{ secrets.SELLER_ID }}
           AZURE_AD_CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
           AZURE_AD_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
+          MSSTORE_APP_ID: ${{ secrets.MSSTORE_APP_ID }}
         run: |
           $required = @(
             "AZURE_AD_TENANT_ID",
             "SELLER_ID",
             "AZURE_AD_CLIENT_ID",
-            "AZURE_AD_CLIENT_SECRET"
+            "AZURE_AD_CLIENT_SECRET",
+            "MSSTORE_APP_ID"
           )
 
           $missing = @()
@@ -75,17 +77,37 @@ jobs:
             --clientId ${{ secrets.AZURE_AD_CLIENT_ID }} `
             --clientSecret ${{ secrets.AZURE_AD_CLIENT_SECRET }}
 
+      - name: "Preflight: verify Store app access"
+        shell: pwsh
+        env:
+          MSSTORE_APP_ID: ${{ secrets.MSSTORE_APP_ID }}
+        run: |
+          $appsOutput = msstore apps list -v 2>&1
+          $appsText = $appsOutput | Out-String
+          Write-Host $appsText
+
+          if ($appsText -notmatch [regex]::Escape($env:MSSTORE_APP_ID)) {
+            Write-Error "Configured credentials cannot access app '$env:MSSTORE_APP_ID'. Check Partner Center roles, tenant, seller ID, and app ownership."
+            exit 1
+          }
+
       - name: Update submission metadata
         shell: pwsh
+        env:
+          MSSTORE_APP_ID: ${{ secrets.MSSTORE_APP_ID }}
         run: |
-          msstore submission updateMetadata 9NMJ8S70L69M store-metadata/metadata.json
+          msstore submission updateMetadata $env:MSSTORE_APP_ID store-metadata/metadata.json
 
       - name: Publish metadata submission
         shell: pwsh
+        env:
+          MSSTORE_APP_ID: ${{ secrets.MSSTORE_APP_ID }}
         run: |
-          msstore submission publish 9NMJ8S70L69M
+          msstore submission publish $env:MSSTORE_APP_ID
 
       - name: Poll submission status
         shell: pwsh
+        env:
+          MSSTORE_APP_ID: ${{ secrets.MSSTORE_APP_ID }}
         run: |
-          msstore submission poll 9NMJ8S70L69M
+          msstore submission poll $env:MSSTORE_APP_ID

@@ -251,9 +251,30 @@ jobs:
             --clientSecret ${{ secrets.AZURE_AD_CLIENT_SECRET }}
         shell: pwsh
 
-      - name: Publish to Microsoft Store
+      - name: "Preflight: verify Store app access"
+        shell: pwsh
+        env:
+          MSSTORE_APP_ID: ${{ secrets.MSSTORE_APP_ID }}
         run: |
-          msstore publish "bundle/DefinitionForCommandPalette.msixbundle" --appId 9NMJ8S70L69M
+          if ([string]::IsNullOrWhiteSpace($env:MSSTORE_APP_ID)) {
+            Write-Error "Missing required GitHub Secret: MSSTORE_APP_ID"
+            exit 1
+          }
+
+          $appsOutput = msstore apps list -v 2>&1
+          $appsText = $appsOutput | Out-String
+          Write-Host $appsText
+
+          if ($appsText -notmatch [regex]::Escape($env:MSSTORE_APP_ID)) {
+            Write-Error "Configured credentials cannot access app '$env:MSSTORE_APP_ID'. Check Partner Center roles, tenant, seller ID, and app ownership."
+            exit 1
+          }
+
+      - name: Publish to Microsoft Store
+        env:
+          MSSTORE_APP_ID: ${{ secrets.MSSTORE_APP_ID }}
+        run: |
+          msstore publish "bundle/DefinitionForCommandPalette.msixbundle" --appId $env:MSSTORE_APP_ID -v
         shell: pwsh
 
   upload-to-release:
