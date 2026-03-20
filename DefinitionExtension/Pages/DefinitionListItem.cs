@@ -19,7 +19,7 @@ public enum DefinitionItemType
     WordHeader
 }
 
-internal sealed class DefinitionListItem : ListItem
+internal sealed partial class DefinitionListItem : ListItem
 {
     private static readonly ResourceLoader _resourceLoader = new();
 
@@ -114,7 +114,7 @@ internal sealed class DefinitionListItem : ListItem
     }
 }
 
-internal sealed class CopyTextCommand : InvokableCommand
+internal sealed partial class CopyTextCommand : InvokableCommand
 {
     private readonly string _text;
 
@@ -135,7 +135,7 @@ internal sealed class CopyTextCommand : InvokableCommand
     }
 }
 
-internal sealed class OpenUrlCommand : InvokableCommand
+internal sealed partial class OpenUrlCommand : InvokableCommand
 {
     private readonly string _url;
 
