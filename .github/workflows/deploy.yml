@@ -53,7 +53,7 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
           else
-            VERSION=$(grep -oP 'Version="\K[^"]+' DefinitionExtension/Package.appxmanifest | head -n 1)
+            VERSION=$(sed -n 's/.*Version="\([^"]*\)".*/\1/p' DefinitionExtension/Package.appxmanifest | head -n 1)
             if [[ -z "$VERSION" ]]; then
               VERSION="1.0.1.0"
             fi
