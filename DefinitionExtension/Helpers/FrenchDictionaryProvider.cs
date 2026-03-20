@@ -165,7 +165,7 @@ internal class FrenchDictionaryProvider : IDictionaryProvider
         var titleText = NormalizeHtmlText(titleNode?.InnerText);
         if (!string.IsNullOrWhiteSpace(titleText))
         {
-            var quotedWordMatch = Regex.Match(titleText, "[''"](?<word>[^''"]+)[''""]", RegexOptions.IgnoreCase);
+            var quotedWordMatch = Regex.Match(titleText, @"['""“”‘’](?<word>[^'""“”‘’]+)['""“”‘’]", RegexOptions.IgnoreCase);
             if (quotedWordMatch.Success)
                 return quotedWordMatch.Groups["word"].Value.Trim();
         }
