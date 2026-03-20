@@ -1,0 +1,88 @@
+name: Update Microsoft Store Metadata
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'store-metadata/**'
+
+  workflow_dispatch:
+
+jobs:
+  update-metadata:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure Microsoft Store CLI
+        uses: microsoft/setup-msstore-cli@v1
+
+      - name: Validate required secrets
+        shell: pwsh
+        env:
+          AZURE_AD_TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
+          SELLER_ID: ${{ secrets.SELLER_ID }}
+          AZURE_AD_CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          AZURE_AD_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
+        run: |
+          $required = @(
+            "AZURE_AD_TENANT_ID",
+            "SELLER_ID",
+            "AZURE_AD_CLIENT_ID",
+            "AZURE_AD_CLIENT_SECRET"
+          )
+
+          $missing = @()
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace((Get-Item "env:$name").Value)) {
+              $missing += $name
+            }
+          }
+
+          if ($missing.Count -gt 0) {
+            Write-Error "Missing required GitHub Secrets: $($missing -join ', ')"
+            exit 1
+          }
+
+      - name: Validate metadata file exists
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "store-metadata/metadata.json")) {
+            Write-Error "store-metadata/metadata.json not found."
+            exit 1
+          }
+
+      - name: Validate metadata JSON syntax
+        shell: pwsh
+        run: |
+          Get-Content "store-metadata/metadata.json" -Raw | ConvertFrom-Json | Out-Null
+          Write-Host "metadata.json is valid JSON"
+
+      - name: Authenticate with Microsoft Store
+        shell: pwsh
+        run: |
+          msstore reconfigure `
+            --tenantId ${{ secrets.AZURE_AD_TENANT_ID }} `
+            --sellerId ${{ secrets.SELLER_ID }} `
+            --clientId ${{ secrets.AZURE_AD_CLIENT_ID }} `
+            --clientSecret ${{ secrets.AZURE_AD_CLIENT_SECRET }}
+
+      - name: Update submission metadata
+        shell: pwsh
+        run: |
+          msstore submission updateMetadata 9NMJ8S70L69M store-metadata/metadata.json
+
+      - name: Publish metadata submission
+        shell: pwsh
+        run: |
+          msstore submission publish 9NMJ8S70L69M
+
+      - name: Poll submission status
+        shell: pwsh
+        run: |
+          msstore submission poll 9NMJ8S70L69M
