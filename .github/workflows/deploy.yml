@@ -7,6 +7,14 @@ on:
   release:
     types: [released]
 
+  push:
+    branches: [master]
+    paths:
+      - 'DefinitionExtension/Strings/**'
+      - 'DefinitionExtension/Helpers/**'
+      - 'DefinitionExtension/Pages/**'
+      - 'DefinitionExtension/Resources/**'
+
   workflow_dispatch:
     inputs:
       skip_store_publish:
@@ -45,7 +53,10 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
           else
-            VERSION="1.0.0.0"
+            VERSION=$(grep -oP 'Version="\K[^"]+' DefinitionExtension/Package.appxmanifest | head -n 1)
+            if [[ -z "$VERSION" ]]; then
+              VERSION="1.0.1.0"
+            fi
           fi
           # Ensure 4-part version (x.y.z.w)
           IFS='.' read -ra PARTS <<< "$VERSION"
@@ -215,6 +226,7 @@ jobs:
     runs-on: windows-latest
     if: >-
       (github.event_name == 'release' ||
+       github.event_name == 'push' ||
        (github.event_name == 'workflow_dispatch' && github.event.inputs.skip_store_publish != 'true'))
 
     steps:
@@ -244,6 +256,7 @@ jobs:
   upload-to-release:
     needs: bundle
     runs-on: ubuntu-latest
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Download MSIX Bundle

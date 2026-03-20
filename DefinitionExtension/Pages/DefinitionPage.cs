@@ -3,11 +3,13 @@
 
 using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
+using Windows.ApplicationModel.Resources;
 using DefinitionExtension.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,6 +25,7 @@ internal sealed partial class DefinitionPage : DynamicListPage
     private bool _isQueryRunning;
 
     private readonly IconInfo _logoIcon = new("\uE82D");
+    private static readonly ResourceLoader _resourceLoader = new();
 
     public DefinitionPage(SettingsManager settingsManager, DictionaryService dictionaryService)
     {
@@ -31,10 +34,10 @@ internal sealed partial class DefinitionPage : DynamicListPage
         settingsManager.ExtensionHomePage = this;
 
         Icon = _logoIcon;
-        Title = "Definition";
+        Title = _resourceLoader.GetString("AppTitle");
         Name = "Open";
         ShowDetails = true;
-        PlaceholderText = "Type a word to look up its definition...";
+        PlaceholderText = _resourceLoader.GetString("PlaceholderText");
 
         ReloadExtensionState();
     }
@@ -44,25 +47,19 @@ internal sealed partial class DefinitionPage : DynamicListPage
         var langName = _settingsManager.Language switch
         {
             "en" => "English",
-            "es" => "Spanish",
+            "uk" => "Українська",
+            "zh" => "中文",
             "fr" => "French",
-            "de" => "German",
-            "it" => "Italian",
-            "pt-BR" => "Portuguese",
-            "ja" => "Japanese",
-            "ko" => "Korean",
-            "tr" => "Turkish",
-            "ar" => "Arabic",
-            "hi" => "Hindi",
+
             _ => "English"
         };
 
-        Title = $"Definition ({langName})";
+        Title = $"{_resourceLoader.GetString("AppTitle")} ({langName})";
         EmptyContent = new CommandItem(new NoOpCommand())
         {
             Icon = _logoIcon,
-            Title = "Word Definition Lookup",
-            Subtitle = $"Type a word to search the {langName} dictionary",
+            Title = _resourceLoader.GetString("WordDefinitionLookup"),
+            Subtitle = string.Format(_resourceLoader.GetString("TypeWordToSearch"), langName),
         };
         RaiseItemsChanged(_items.Count);
     }
@@ -100,10 +97,15 @@ internal sealed partial class DefinitionPage : DynamicListPage
         {
             // Expected from debouncing
         }
+        catch (HttpRequestException ex)
+        {
+            Debug.WriteLine($"[Definition CmdPal] Network error: {ex.Message}");
+            HandleError(_resourceLoader.GetString("Error"), _resourceLoader.GetString("NetworkError"));
+        }
         catch (Exception ex)
         {
             Debug.WriteLine($"[Definition CmdPal] Search error: {ex.Message}");
-            HandleError("Error", "An unexpected error occurred during lookup.");
+            HandleError(_resourceLoader.GetString("Error"), _resourceLoader.GetString("UnexpectedError"));
         }
         finally
         {
@@ -125,7 +127,8 @@ internal sealed partial class DefinitionPage : DynamicListPage
         var entries = await _dictionaryService.LookupAsync(
             word,
             _settingsManager.ApiEndpoint,
-            cancellationToken);
+            cancellationToken,
+            _settingsManager.LatinLanguages);
 
         if (cancellationToken.IsCancellationRequested)
             return;
@@ -133,8 +136,8 @@ internal sealed partial class DefinitionPage : DynamicListPage
         if (entries.Count == 0)
         {
             HandleError(
-                $"No definitions found for \"{word}\"",
-                "Check spelling or try another word.");
+                string.Format(_resourceLoader.GetString("NoDefinitionsFor"), word),
+                _resourceLoader.GetString("CheckSpelling"));
             return;
         }
 
@@ -143,7 +146,7 @@ internal sealed partial class DefinitionPage : DynamicListPage
         _items.AddRange(items);
         IsLoading = false;
         _isQueryRunning = false;
-        Title = $"\"{word}\" — {_items.Count} results";
+        Title = string.Format(_resourceLoader.GetString("ResultsTitle"), word, _items.Count);
         RaiseItemsChanged(_items.Count);
     }
 

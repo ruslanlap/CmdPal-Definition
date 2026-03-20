@@ -40,54 +40,54 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="AppTitle" xml:space="preserve">
-    <value>Definition</value>
+    <value>Définition</value>
   </data>
   <data name="PlaceholderText" xml:space="preserve">
-    <value>Type a word to look up its definition...</value>
+    <value>Tapez un mot pour chercher sa définition...</value>
   </data>
   <data name="NoResults" xml:space="preserve">
-    <value>No definitions found</value>
+    <value>Aucune définition trouvée</value>
   </data>
   <data name="Settings" xml:space="preserve">
-    <value>Settings</value>
+    <value>Paramètres</value>
   </data>
   <data name="CopyToClipboard" xml:space="preserve">
-    <value>Copy to clipboard</value>
+    <value>Copier dans le presse-papiers</value>
   </data>
   <data name="OpenInWiktionary" xml:space="preserve">
-    <value>Open in Wiktionary</value>
+    <value>Ouvrir dans Wiktionnaire</value>
   </data>
   <data name="Error" xml:space="preserve">
-    <value>Error</value>
+    <value>Erreur</value>
   </data>
   <data name="NetworkError" xml:space="preserve">
-    <value>Could not reach dictionary service. Check connection.</value>
+    <value>Impossible de joindre le service de dictionnaire. Vérifiez la connexion.</value>
   </data>
   <data name="Subtitle" xml:space="preserve">
-    <value>Look up word definitions, phonetics, synonyms &amp; antonyms</value>
+    <value>Rechercher des définitions, phonétiques, synonymes et antonymes</value>
   </data>
   <data name="SettingsSubtitle" xml:space="preserve">
-    <value>Configure the definition lookup settings</value>
+    <value>Configurer les paramètres de recherche de définitions</value>
   </data>
   <data name="WordDefinitionLookup" xml:space="preserve">
-    <value>Word Definition Lookup</value>
+    <value>Recherche de définition</value>
   </data>
   <data name="TypeWordToSearch" xml:space="preserve">
-    <value>Type a word to search the {0} dictionary</value>
+    <value>Tapez un mot pour chercher dans le dictionnaire {0}</value>
   </data>
   <data name="NoDefinitionsFor" xml:space="preserve">
-    <value>No definitions found for "{0}"</value>
+    <value>Aucune définition trouvée pour « {0} »</value>
   </data>
   <data name="CheckSpelling" xml:space="preserve">
-    <value>Check spelling or try another word.</value>
+    <value>Vérifiez l'orthographe ou essayez un autre mot.</value>
   </data>
   <data name="ResultsTitle" xml:space="preserve">
-    <value>"{0}" — {1} results</value>
+    <value>« {0} » — {1} résultats</value>
   </data>
   <data name="UnexpectedError" xml:space="preserve">
-    <value>An unexpected error occurred during lookup.</value>
+    <value>Une erreur inattendue s'est produite lors de la recherche.</value>
   </data>
   <data name="OpenSource" xml:space="preserve">
-    <value>Open source</value>
+    <value>Ouvrir la source</value>
   </data>
 </root>

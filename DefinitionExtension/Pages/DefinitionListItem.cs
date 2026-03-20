@@ -3,6 +3,7 @@
 
 using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
+using Windows.ApplicationModel.Resources;
 using System;
 using System.Diagnostics;
 
@@ -20,6 +21,8 @@ public enum DefinitionItemType
 
 internal sealed class DefinitionListItem : ListItem
 {
+    private static readonly ResourceLoader _resourceLoader = new();
+
     public DefinitionItemType ItemType { get; }
     public string? TextToCopy { get; }
     public string? AudioUrl { get; }
@@ -80,7 +83,7 @@ internal sealed class DefinitionListItem : ListItem
             commands.Add(new CommandContextItem(
                 new CopyTextCommand(TextToCopy))
             {
-                Title = "Copy to clipboard",
+                Title = _resourceLoader.GetString("CopyToClipboard"),
                 Icon = new IconInfo("\uE8C8"),
             });
         }
@@ -91,7 +94,7 @@ internal sealed class DefinitionListItem : ListItem
             commands.Add(new CommandContextItem(
                 new OpenUrlCommand($"https://en.wiktionary.org/wiki/{Uri.EscapeDataString(Word)}"))
             {
-                Title = "Open in Wiktionary",
+                Title = _resourceLoader.GetString("OpenInWiktionary"),
                 Icon = new IconInfo("\uE774"),
             });
         }
@@ -102,7 +105,7 @@ internal sealed class DefinitionListItem : ListItem
             commands.Add(new CommandContextItem(
                 new OpenUrlCommand(SourceUrl))
             {
-                Title = "Open source",
+                Title = _resourceLoader.GetString("OpenSource"),
                 Icon = new IconInfo("\uE71B"),
             });
         }

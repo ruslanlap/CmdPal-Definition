@@ -3,6 +3,7 @@
 
 using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
+using Windows.ApplicationModel.Resources;
 using DefinitionExtension.Helpers;
 using DefinitionExtension.Pages;
 
@@ -14,10 +15,11 @@ public partial class DefinitionCommandsProvider : CommandProvider
     private readonly IconInfo _logoIcon = new("\uE82D"); // Dictionary icon
     private static readonly SettingsManager _settings = new();
     private static readonly DictionaryService _dictionaryService = new();
+    private static readonly ResourceLoader _resourceLoader = new();
 
     public DefinitionCommandsProvider()
     {
-        DisplayName = "Definition";
+        DisplayName = _resourceLoader.GetString("AppTitle");
         Settings = _settings.Settings;
         Icon = _logoIcon;
 
@@ -28,14 +30,14 @@ public partial class DefinitionCommandsProvider : CommandProvider
             new CommandItem(new DefinitionPage(_settings, _dictionaryService))
             {
                 Title = DisplayName,
-                Subtitle = "Look up word definitions, phonetics, synonyms & antonyms",
+                Subtitle = _resourceLoader.GetString("Subtitle"),
                 Icon = _logoIcon,
                 MoreCommands =
                 [
                     new CommandContextItem(settingsPage)
                     {
-                        Title = "Settings",
-                        Subtitle = "Configure the definition lookup settings",
+                        Title = _resourceLoader.GetString("Settings"),
+                        Subtitle = _resourceLoader.GetString("SettingsSubtitle"),
                     },
                 ],
             },

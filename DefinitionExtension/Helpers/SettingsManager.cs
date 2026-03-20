@@ -56,8 +56,10 @@ public class SettingsManager : JsonSettingsManager
     private readonly ChoiceSetSetting _language = new("language",
     [
         new ChoiceSetSetting.Choice("English", "en"),
-        new ChoiceSetSetting.Choice("Spanish", "es"),
+        new ChoiceSetSetting.Choice("Ukrainian (Українська)", "uk"),
+        new ChoiceSetSetting.Choice("Chinese (中文)", "zh"),
         new ChoiceSetSetting.Choice("French", "fr"),
+        new ChoiceSetSetting.Choice("Spanish", "es"),
         new ChoiceSetSetting.Choice("German", "de"),
         new ChoiceSetSetting.Choice("Italian", "it"),
         new ChoiceSetSetting.Choice("Portuguese", "pt-BR"),
@@ -70,6 +72,18 @@ public class SettingsManager : JsonSettingsManager
     {
         Label = "Language",
         Description = "Dictionary language for lookups",
+        Value = "en",
+    };
+
+    private readonly ChoiceSetSetting _latinLanguages = new("latinLanguages",
+    [
+        new ChoiceSetSetting.Choice("English only", "en"),
+        new ChoiceSetSetting.Choice("French only", "fr"),
+        new ChoiceSetSetting.Choice("English + French", "en,fr"),
+    ])
+    {
+        Label = "Latin Script Languages",
+        Description = "Which dictionary providers to use for Latin script words (auto-detection)",
         Value = "en",
     };
 
@@ -94,6 +108,7 @@ public class SettingsManager : JsonSettingsManager
     public bool ShowAntonyms => _showAntonyms.Value;
     public bool ShowPhonetics => _showPhonetics.Value;
     public string Language => _language.Value ?? "en";
+    public string LatinLanguages => _latinLanguages.Value ?? "en";
 
     internal Pages.DefinitionPage? ExtensionHomePage { get; set; }
 
@@ -113,6 +128,7 @@ public class SettingsManager : JsonSettingsManager
         Settings.Add(_showSynonyms);
         Settings.Add(_showAntonyms);
         Settings.Add(_showPhonetics);
+        Settings.Add(_latinLanguages);
         Settings.Add(_apiEndpoint);
 
         try

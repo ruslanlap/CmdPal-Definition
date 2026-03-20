@@ -47,6 +47,7 @@
     <PackageReference Include="Microsoft.Windows.CsWinRT" />
     <PackageReference Include="System.Text.Json" />
     <PackageReference Include="Shmuelie.WinRTServer" />
+    <PackageReference Include="HtmlAgilityPack" />
 
     <!-- Needed to enable building an MSIX package -->
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools.MSIX">
@@ -83,6 +84,10 @@
     <GenerateTemporaryStoreCertificate>False</GenerateTemporaryStoreCertificate>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\cedict.txt.gz" LogicalName="DefinitionExtension.Resources.cedict.txt.gz" />
+  </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <PublishTrimmed>false</PublishTrimmed>

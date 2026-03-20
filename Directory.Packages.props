@@ -8,5 +8,6 @@
     <PackageVersion Include="Microsoft.Windows.SDK.BuildTools.MSIX" Version="1.7.20250829.1" />
     <PackageVersion Include="Shmuelie.WinRTServer" Version="2.1.1" />
     <PackageVersion Include="System.Text.Json" Version="9.0.0" />
+    <PackageVersion Include="HtmlAgilityPack" Version="1.11.72" />
   </ItemGroup>
 </Project>
