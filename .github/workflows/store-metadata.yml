@@ -119,9 +119,8 @@ jobs:
           $metadata = Get-Content "store-metadata/metadata.json" -Raw | ConvertFrom-Json
           $null = $metadata.PSObject.Properties.Remove("__template")
           $null = $metadata.PSObject.Properties.Remove("notes")
-          $metadataPath = Join-Path $env:RUNNER_TEMP "metadata.publish.json"
-          $metadata | ConvertTo-Json -Depth 100 | Set-Content -Path $metadataPath -Encoding UTF8
-          msstore submission updateMetadata $env:MSSTORE_APP_ID $metadataPath
+          $metadataJson = $metadata | ConvertTo-Json -Depth 100 -Compress
+          msstore submission updateMetadata $env:MSSTORE_APP_ID $metadataJson
 
       - name: Publish metadata submission
         if: steps.check_metadata.outputs.HAS_METADATA == 'true' && steps.metadata_mode.outputs.APPLY_METADATA == 'true'
