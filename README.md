@@ -33,12 +33,18 @@
 
 Type a word, get results. That simple.
 
+## What's New (v1.0.2)
+
+- Expanded dictionary experience with support for: English, French, Chinese and Ukrainian.
+- Improved lookup quality with cleaner grouping by part of speech, better examples, and faster repeated searches via in-memory caching.
+- Better CI/CD reliability for Store publishing and release packaging.
+
 ## Features
 
 | Feature | Description |
 |---------|-------------|
 | **Instant Definitions** | Definitions from the [Free Dictionary API](https://dictionaryapi.dev/) grouped by part of speech |
-| **11 Languages** | English, Spanish, French, German, Italian, Portuguese, Japanese, Korean, Turkish, Arabic, Hindi |
+| **3 Languages** | English, French, Chinese and Ukrainian |
 | **Phonetics** | IPA transcriptions displayed alongside each word |
 | **Synonyms & Antonyms** | Related words listed per part of speech |
 | **Usage Examples** | Real-world example sentences |
@@ -88,7 +94,7 @@ Add-AppPackage -Path DefinitionForCommandPalette.msixbundle
 ### Updating
 
 ```powershell
-winget upgrade"Definition for Command Palette"
+winget upgrade "Definition for Command Palette"
 ```
 
 ### Uninstalling
@@ -174,6 +180,16 @@ GET https://api.dictionaryapi.dev/api/v2/entries/{lang}/{word}
 ```
 
 An internet connection is required for lookups.
+
+## Store Metadata in CI
+
+The workflow `.github/workflows/store-metadata.yml` can update Microsoft Store listing metadata from:
+
+`store-metadata/metadata.json`
+
+If this file is missing, the workflow now skips metadata update steps instead of failing.
+
+Use this file only when you intentionally want to update listing metadata through CI.
 
 ## Troubleshooting
 

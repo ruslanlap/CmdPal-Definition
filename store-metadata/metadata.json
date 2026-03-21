@@ -1,0 +1,89 @@
+{
+  "__template": false,
+  "notes": [
+    "This file contains real listing descriptions.",
+    "Keep __template=false to apply metadata updates in CI."
+  ],
+  "listings": {
+    "en-us": {
+      "baseListing": {
+        "description": "Instant dictionary lookups in PowerToys Command Palette. Type any word and get definitions, phonetics, synonyms, antonyms, and examples without leaving your keyboard.",
+        "features": [
+          "Fast word definitions grouped by part of speech",
+          "Phonetics and pronunciation details",
+          "Synonyms and antonyms for better vocabulary",
+          "Usage examples from dictionary entries",
+          "Copy results directly from Command Palette"
+        ],
+        "keywords": [
+          "dictionary",
+          "definition",
+          "vocabulary",
+          "thesaurus",
+          "powertoys",
+          "command palette"
+        ]
+      }
+    },
+    "uk-ua": {
+      "baseListing": {
+        "description": "Миттєвий словник у PowerToys Command Palette. Введіть слово та отримайте визначення, транскрипцію, синоніми, антоніми й приклади без перемикання між вікнами.",
+        "features": [
+          "Швидкий пошук визначень за частинами мови",
+          "Транскрипція та фонетика",
+          "Синоніми й антоніми для розширення словника",
+          "Приклади використання у реченнях",
+          "Копіювання результатів одним натисканням"
+        ],
+        "keywords": [
+          "словник",
+          "визначення",
+          "синоніми",
+          "антоніми",
+          "PowerToys",
+          "Command Palette"
+        ]
+      }
+    },
+    "fr-fr": {
+      "baseListing": {
+        "description": "Dictionnaire instantané dans PowerToys Command Palette. Saisissez un mot et obtenez définitions, phonétique, synonymes, antonymes et exemples en quelques secondes.",
+        "features": [
+          "Définitions rapides par catégorie grammaticale",
+          "Transcriptions phonétiques",
+          "Synonymes et antonymes",
+          "Exemples d'utilisation",
+          "Copie rapide des résultats"
+        ],
+        "keywords": [
+          "dictionnaire",
+          "définition",
+          "synonymes",
+          "antonymes",
+          "PowerToys",
+          "Command Palette"
+        ]
+      }
+    },
+    "zh-cn": {
+      "baseListing": {
+        "description": "在 PowerToys Command Palette 中进行即时词典查询。输入单词即可快速获得释义、音标、同义词、反义词和示例句。",
+        "features": [
+          "按词性展示清晰释义",
+          "显示音标与发音信息",
+          "同义词与反义词",
+          "真实用法示例",
+          "一键复制查询结果"
+        ],
+        "keywords": [
+          "词典",
+          "释义",
+          "同义词",
+          "反义词",
+          "PowerToys",
+          "命令面板"
+        ]
+      }
+    }
+  }
+}

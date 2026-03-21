@@ -73,6 +73,20 @@ jobs:
           Get-Content "store-metadata/metadata.json" -Raw | ConvertFrom-Json | Out-Null
           Write-Host "metadata.json is valid JSON"
 
+      - name: Check metadata template mode
+        id: metadata_mode
+        if: steps.check_metadata.outputs.HAS_METADATA == 'true'
+        shell: pwsh
+        run: |
+          $metadata = Get-Content "store-metadata/metadata.json" -Raw | ConvertFrom-Json
+          if ($metadata.PSObject.Properties.Name -contains "__template" -and $metadata.__template -eq $true) {
+            "APPLY_METADATA=false" >> $env:GITHUB_OUTPUT
+            Write-Host "metadata.json is marked as template. Skipping metadata update steps."
+          } else {
+            "APPLY_METADATA=true" >> $env:GITHUB_OUTPUT
+            Write-Host "metadata.json is ready for Store metadata update."
+          }
+
       - name: Authenticate with Microsoft Store
         shell: pwsh
         run: |
@@ -97,15 +111,20 @@ jobs:
           }
 
       - name: Update submission metadata
-        if: steps.check_metadata.outputs.HAS_METADATA == 'true'
+        if: steps.check_metadata.outputs.HAS_METADATA == 'true' && steps.metadata_mode.outputs.APPLY_METADATA == 'true'
         shell: pwsh
         env:
           MSSTORE_APP_ID: ${{ secrets.MSSTORE_APP_ID }}
         run: |
-          msstore submission updateMetadata $env:MSSTORE_APP_ID store-metadata/metadata.json
+          $metadata = Get-Content "store-metadata/metadata.json" -Raw | ConvertFrom-Json
+          $null = $metadata.PSObject.Properties.Remove("__template")
+          $null = $metadata.PSObject.Properties.Remove("notes")
+          $metadataPath = Join-Path $env:RUNNER_TEMP "metadata.publish.json"
+          $metadata | ConvertTo-Json -Depth 100 | Set-Content -Path $metadataPath -Encoding UTF8
+          msstore submission updateMetadata $env:MSSTORE_APP_ID $metadataPath
 
       - name: Publish metadata submission
-        if: steps.check_metadata.outputs.HAS_METADATA == 'true'
+        if: steps.check_metadata.outputs.HAS_METADATA == 'true' && steps.metadata_mode.outputs.APPLY_METADATA == 'true'
         shell: pwsh
         env:
           MSSTORE_APP_ID: ${{ secrets.MSSTORE_APP_ID }}
@@ -113,7 +132,7 @@ jobs:
           msstore submission publish $env:MSSTORE_APP_ID
 
       - name: Poll submission status
-        if: steps.check_metadata.outputs.HAS_METADATA == 'true'
+        if: steps.check_metadata.outputs.HAS_METADATA == 'true' && steps.metadata_mode.outputs.APPLY_METADATA == 'true'
         shell: pwsh
         env:
           MSSTORE_APP_ID: ${{ secrets.MSSTORE_APP_ID }}
