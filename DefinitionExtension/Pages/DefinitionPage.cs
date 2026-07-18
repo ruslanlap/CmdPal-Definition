@@ -19,6 +19,7 @@ internal sealed partial class DefinitionPage : DynamicListPage
 {
     private List<DefinitionListItem> _items = new();
     private readonly DictionaryService _dictionaryService;
+    private readonly SuggestionService _suggestionService;
     private readonly SettingsManager _settingsManager;
     private CancellationTokenSource? _currentSearchCts;
     private string _lastSearch = string.Empty;
@@ -31,6 +32,7 @@ internal sealed partial class DefinitionPage : DynamicListPage
     {
         _settingsManager = settingsManager;
         _dictionaryService = dictionaryService;
+        _suggestionService = new SuggestionService(new HttpClient());
         settingsManager.ExtensionHomePage = this;
 
         Icon = _logoIcon;
@@ -135,9 +137,17 @@ internal sealed partial class DefinitionPage : DynamicListPage
 
         if (entries.Count == 0)
         {
-            HandleError(
-                string.Format(_resourceLoader.GetString("NoDefinitionsFor"), word),
-                _resourceLoader.GetString("CheckSpelling"));
+            // No definitions found — try to get spelling suggestions (if enabled)
+            if (_settingsManager.EnableSpellingSuggestions)
+            {
+                await ShowSuggestionsAsync(word, cancellationToken);
+            }
+            else
+            {
+                HandleError(
+                    string.Format(_resourceLoader.GetString("NoDefinitionsFor"), word),
+                    _resourceLoader.GetString("CheckSpelling"));
+            }
             return;
         }
 
@@ -271,6 +281,66 @@ internal sealed partial class DefinitionPage : DynamicListPage
         };
         _items.Clear();
         RaiseItemsChanged(0);
+    }
+
+    /// <summary>
+    /// When no definitions are found, fetches spelling suggestions and displays them
+    /// as clickable items that re-trigger a lookup for the suggested word.
+    /// </summary>
+    private async Task ShowSuggestionsAsync(string word, CancellationToken cancellationToken)
+    {
+        var suggestions = await _suggestionService.GetSuggestionsAsync(
+            word, _settingsManager.Language, cancellationToken);
+
+        if (cancellationToken.IsCancellationRequested)
+            return;
+
+        _items.Clear();
+
+        if (suggestions.Count == 0)
+        {
+            // No suggestions either — show the standard "no definitions" error
+            HandleError(
+                string.Format(_resourceLoader.GetString("NoDefinitionsFor"), word),
+                _resourceLoader.GetString("CheckSpelling"));
+            return;
+        }
+
+        // Show "Did you mean?" header
+        Title = string.Format(_resourceLoader.GetString("DidYouMean"), word);
+
+        foreach (var suggestion in suggestions)
+        {
+            var similarity = FuzzyMatcher.GetSimilarityScore(word, suggestion);
+            var subtitle = similarity > 0.8
+                ? _resourceLoader.GetString("CloseMatch")
+                : _resourceLoader.GetString("PossibleMatch");
+
+            _items.Add(new DefinitionListItem(
+                title: suggestion,
+                subtitle: subtitle,
+                itemType: DefinitionItemType.Suggestion,
+                command: new SearchWordCommand(suggestion, this),
+                textToCopy: suggestion,
+                word: suggestion,
+                icon: new IconInfo("\uE721"),
+                tags: new[] { new Tag("suggestion") }));
+        }
+
+        IsLoading = false;
+        _isQueryRunning = false;
+        RaiseItemsChanged(_items.Count);
+    }
+
+    /// <summary>
+    /// Programmatically updates the search text and triggers a new lookup.
+    /// Used when the user clicks a suggestion item.
+    /// </summary>
+    public void TriggerSearch(string word)
+    {
+        if (string.IsNullOrWhiteSpace(word))
+            return;
+        UpdateSearchText(_lastSearch, word);
     }
 
     public override IListItem[] GetItems() => _items.ToArray();

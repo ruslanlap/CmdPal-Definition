@@ -53,6 +53,12 @@ public class SettingsManager : JsonSettingsManager
         Description = "Show phonetic transcription in result titles",
     };
 
+    private readonly ToggleSetting _enableSpellingSuggestions = new("enableSpellingSuggestions", true)
+    {
+        Label = "Enable Spelling Suggestions",
+        Description = "Show 'Did you mean?' suggestions when no definitions are found",
+    };
+
     private readonly ChoiceSetSetting _language = new("language",
     [
         new ChoiceSetSetting.Choice("English", "en"),
@@ -107,6 +113,7 @@ public class SettingsManager : JsonSettingsManager
     public bool ShowSynonyms => _showSynonyms.Value;
     public bool ShowAntonyms => _showAntonyms.Value;
     public bool ShowPhonetics => _showPhonetics.Value;
+    public bool EnableSpellingSuggestions => _enableSpellingSuggestions.Value;
     public string Language => _language.Value ?? "en";
     public string LatinLanguages => _latinLanguages.Value ?? "en";
 
@@ -128,6 +135,7 @@ public class SettingsManager : JsonSettingsManager
         Settings.Add(_showSynonyms);
         Settings.Add(_showAntonyms);
         Settings.Add(_showPhonetics);
+        Settings.Add(_enableSpellingSuggestions);
         Settings.Add(_latinLanguages);
         Settings.Add(_apiEndpoint);
 

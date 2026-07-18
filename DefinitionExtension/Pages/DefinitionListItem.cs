@@ -16,7 +16,8 @@ public enum DefinitionItemType
     Synonym,
     Antonym,
     Phonetic,
-    WordHeader
+    WordHeader,
+    Suggestion
 }
 
 internal sealed partial class DefinitionListItem : ListItem
@@ -62,6 +63,39 @@ internal sealed partial class DefinitionListItem : ListItem
         }
     }
 
+    /// <summary>
+    /// Constructor for suggestion items with a custom command (e.g., search trigger).
+    /// </summary>
+    public DefinitionListItem(
+        string title,
+        string subtitle,
+        DefinitionItemType itemType,
+        InvokableCommand command,
+        string? textToCopy = null,
+        string? word = null,
+        IconInfo? icon = null,
+        Tag[]? tags = null)
+        : base(command)
+    {
+        Title = title;
+        Subtitle = subtitle;
+        ItemType = itemType;
+        TextToCopy = textToCopy ?? subtitle;
+        Word = word;
+        Icon = icon ?? GetDefaultIcon(itemType);
+
+        if (tags != null)
+        {
+            Tags = tags;
+        }
+
+        var moreCommands = BuildContextCommands();
+        if (moreCommands.Length > 0)
+        {
+            MoreCommands = moreCommands;
+        }
+    }
+
     private static IconInfo GetDefaultIcon(DefinitionItemType type) => type switch
     {
         DefinitionItemType.Definition => new IconInfo("\uE8BD"),  // Book icon
@@ -70,6 +104,7 @@ internal sealed partial class DefinitionListItem : ListItem
         DefinitionItemType.Antonym => new IconInfo("\uE7BA"),     // Switch icon
         DefinitionItemType.Phonetic => new IconInfo("\uE767"),    // Volume icon
         DefinitionItemType.WordHeader => new IconInfo("\uE82D"),  // Dictionary icon
+        DefinitionItemType.Suggestion => new IconInfo("\uE721"),   // Lightbulb icon
         _ => new IconInfo("\uE82D"),
     };
 
@@ -160,6 +195,29 @@ internal sealed partial class OpenUrlCommand : InvokableCommand
             Debug.WriteLine($"[Definition CmdPal] Failed to open URL: {ex.Message}");
         }
         return CommandResult.Dismiss();
+    }
+}
+
+internal sealed partial class SearchWordCommand : InvokableCommand
+{
+    private readonly string _word;
+    private readonly Pages.DefinitionPage? _page;
+
+    public SearchWordCommand(string word, Pages.DefinitionPage? page = null)
+    {
+        _word = word ?? string.Empty;
+        _page = page;
+        Name = "Search";
+        Icon = new IconInfo("\uE721");
+    }
+
+    public override ICommandResult Invoke()
+    {
+        if (_page != null && !string.IsNullOrEmpty(_word))
+        {
+            _page.TriggerSearch(_word);
+        }
+        return CommandResult.KeepOpen();
     }
 }
 
