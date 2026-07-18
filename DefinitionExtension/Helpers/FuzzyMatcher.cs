@@ -14,7 +14,6 @@ namespace DefinitionExtension.Helpers;
 /// </summary>
 internal static class FuzzyMatcher
 {
-    private const int DefaultMaxDistance = 3;
     private const int DefaultMaxResults = 8;
 
     /// <summary>
@@ -54,6 +53,8 @@ internal static class FuzzyMatcher
     /// <summary>
     /// Returns a normalized similarity score between 0 and 1,
     /// where 1 means identical and 0 means completely different.
+    /// The early-exit threshold scales with word length so small typos
+    /// in longer words are not incorrectly filtered out.
     /// </summary>
     public static double GetSimilarityScore(string input, string candidate)
     {
@@ -88,8 +89,9 @@ internal static class FuzzyMatcher
         int maxLen = Math.Max(input.Length, candidate.Length);
         int distance = LevenshteinDistance(input, candidate);
 
-        // Early exit: if distance is too large, score is very low
-        if (distance > DefaultMaxDistance)
+        // Proportional early-exit threshold: longer words allow more edits
+        int maxDistance = maxLen <= 3 ? 1 : maxLen <= 6 ? 2 : maxLen <= 10 ? 4 : maxLen / 3;
+        if (distance > maxDistance)
             return 0.0;
 
         return 1.0 - (double)distance / maxLen;

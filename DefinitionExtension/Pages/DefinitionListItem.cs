@@ -215,7 +215,7 @@ internal sealed partial class SearchWordCommand : InvokableCommand
     {
         if (_page != null && !string.IsNullOrEmpty(_word))
         {
-            _page.TriggerSearch(_word);
+            _page.LookupWord(_word);
         }
         return CommandResult.KeepOpen();
     }

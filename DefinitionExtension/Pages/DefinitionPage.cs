@@ -32,7 +32,8 @@ internal sealed partial class DefinitionPage : DynamicListPage
     {
         _settingsManager = settingsManager;
         _dictionaryService = dictionaryService;
-        _suggestionService = new SuggestionService(new HttpClient());
+        // Reuse a shared HttpClient with timeout & headers consistent with DictionaryService
+        _suggestionService = new SuggestionService(CreateSuggestionHttpClient());
         settingsManager.ExtensionHomePage = this;
 
         Icon = _logoIcon;
@@ -42,6 +43,18 @@ internal sealed partial class DefinitionPage : DynamicListPage
         PlaceholderText = _resourceLoader.GetString("PlaceholderText");
 
         ReloadExtensionState();
+    }
+
+    private static HttpClient CreateSuggestionHttpClient()
+    {
+        var client = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(10) // Bounded timeout — don't block UI on slow networks
+        };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
+        return client;
     }
 
     public void ReloadExtensionState()
@@ -56,7 +69,7 @@ internal sealed partial class DefinitionPage : DynamicListPage
             _ => "English"
         };
 
-        Title = $"{_resourceLoader.GetString("AppTitle")} ({langName})";
+        Title = $\"{_resourceLoader.GetString("AppTitle")} ({langName})";
         EmptyContent = new CommandItem(new NoOpCommand())
         {
             Icon = _logoIcon,
@@ -292,6 +305,7 @@ internal sealed partial class DefinitionPage : DynamicListPage
         var suggestions = await _suggestionService.GetSuggestionsAsync(
             word, _settingsManager.Language, cancellationToken);
 
+        // Check if a new search has started while we were fetching suggestions
         if (cancellationToken.IsCancellationRequested)
             return;
 
@@ -306,8 +320,8 @@ internal sealed partial class DefinitionPage : DynamicListPage
             return;
         }
 
-        // Show "Did you mean?" header
-        Title = string.Format(_resourceLoader.GetString("DidYouMean"), word);
+        // Show "Did you mean?" header using the top-ranked suggestion
+        Title = string.Format(_resourceLoader.GetString("DidYouMean"), suggestions[0]);
 
         foreach (var suggestion in suggestions)
         {
@@ -333,14 +347,24 @@ internal sealed partial class DefinitionPage : DynamicListPage
     }
 
     /// <summary>
-    /// Programmatically updates the search text and triggers a new lookup.
-    /// Used when the user clicks a suggestion item.
+    /// Triggers a definition lookup for the given word. Used by spelling suggestion
+    /// items so the user can click a suggestion and immediately see its definition.
+    /// Cancels any in-flight request, resets query state, and re-enters UpdateListAsync.
     /// </summary>
-    public void TriggerSearch(string word)
+    public void LookupWord(string word)
     {
         if (string.IsNullOrWhiteSpace(word))
             return;
-        UpdateSearchText(_lastSearch, word);
+
+        var trimmed = word.Trim();
+
+        // Cancel any in-flight request and reset state for a fresh lookup
+        _currentSearchCts?.Cancel();
+        _currentSearchCts = new CancellationTokenSource();
+        _isQueryRunning = false;
+        _lastSearch = trimmed;
+
+        _ = UpdateListAsync(trimmed, _currentSearchCts.Token);
     }
 
     public override IListItem[] GetItems() => _items.ToArray();

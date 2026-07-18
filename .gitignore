@@ -402,3 +402,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Mono registry artifacts (local dev environment — never commit)
+.mono/

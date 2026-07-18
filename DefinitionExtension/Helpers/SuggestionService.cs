@@ -37,6 +37,7 @@ internal class SuggestionService
     /// <summary>
     /// Gets word suggestions for the given input, using the specified language.
     /// Returns a ranked list of candidate words that the user might be trying to type.
+    /// The original input word is excluded from the results.
     /// </summary>
     public async Task<List<string>> GetSuggestionsAsync(
         string input,
@@ -46,22 +47,26 @@ internal class SuggestionService
         if (string.IsNullOrWhiteSpace(input) || input.Length < 2)
             return new List<string>();
 
-        input = input.Trim();
+        var trimmedInput = input.Trim();
 
         // Gather suggestions from multiple sources in parallel
         var tasks = new List<Task<List<string>>>();
 
-        // 1. Datamuse API (English & Spanish)
+        // 1. Datamuse API (English & Spanish) — only for Latin/mixed script
         if (DatamuseSupportedLanguages.Contains(language))
         {
-            tasks.Add(GetDatamuseSuggestionsAsync(input, language, cancellationToken));
+            var script = ScriptDetector.DetectScript(trimmedInput);
+            if (script == ScriptType.Latin || script == ScriptType.Mixed)
+            {
+                tasks.Add(GetDatamuseSuggestionsAsync(trimmedInput, cancellationToken));
+            }
         }
 
         // 2. Wiktionary opensearch (many languages)
-        tasks.Add(GetWiktionarySuggestionsAsync(input, language, cancellationToken));
+        tasks.Add(GetWiktionarySuggestionsAsync(trimmedInput, language, cancellationToken));
 
         // 3. Local common-word fallback
-        tasks.Add(Task.FromResult(GetLocalSuggestions(input, language)));
+        tasks.Add(Task.FromResult(GetLocalSuggestions(trimmedInput, language)));
 
         try
         {
@@ -70,11 +75,13 @@ internal class SuggestionService
                 .SelectMany(s => s)
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .Select(s => s.Trim())
+                // Exclude the original word from suggestions
+                .Where(s => !string.Equals(s, trimmedInput, StringComparison.OrdinalIgnoreCase))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             // Rank by fuzzy similarity to the input
-            return FuzzyMatcher.RankBySimilarity(input, allSuggestions, maxResults: 8, minScore: 0.2);
+            return FuzzyMatcher.RankBySimilarity(trimmedInput, allSuggestions, maxResults: 8, minScore: 0.2);
         }
         catch (OperationCanceledException)
         {
@@ -90,13 +97,13 @@ internal class SuggestionService
     #region Datamuse API
 
     private async Task<List<string>> GetDatamuseSuggestionsAsync(
-        string input, string language, CancellationToken token)
+        string trimmedWord, CancellationToken token)
     {
         try
         {
             // Datamuse spelling suggestion endpoint
-            // md=s (sounds like / spelled like), max=10
-            var url = $"https://api.datamuse.com/words?sp={Uri.EscapeDataString(input)}*&max=10&md=s";
+            // sp=* (spelled like), max=10
+            var url = $"https://api.datamuse.com/words?sp={Uri.EscapeDataString(trimmedWord)}*&max=10&md=s";
 
             using var response = await _httpClient.GetAsync(url, token);
             if (!response.IsSuccessStatusCode)
@@ -134,7 +141,7 @@ internal class SuggestionService
     #region Wiktionary opensearch
 
     private async Task<List<string>> GetWiktionarySuggestionsAsync(
-        string input, string language, CancellationToken token)
+        string trimmedWord, string language, CancellationToken token)
     {
         try
         {
@@ -156,7 +163,7 @@ internal class SuggestionService
                 _ => "en.wiktionary.org"
             };
 
-            var url = $"https://{wiktionaryDomain}/w/api.php?action=opensearch&search={Uri.EscapeDataString(input)}&limit=10&namespace=0&format=json";
+            var url = $"https://{wiktionaryDomain}/w/api.php?action=opensearch&search={Uri.EscapeDataString(trimmedWord)}&limit=10&namespace=0&format=json";
 
             using var response = await _httpClient.GetAsync(url, token);
             if (!response.IsSuccessStatusCode)
@@ -220,9 +227,9 @@ internal class SuggestionService
         "і", "в", "на", "не", "що", "з", "до", "як", "це", "за",
         "від", "у", "про", "для", "його", "бути", "один", "я", "вони", "ми",
         "він", "вона", "все", "якщо", "або", "коли", "так", "там", "тут", "де",
-        "дуже", "добре", "слово", " людина", "час", "річ", "світ", "дім", "рука", "очі",
+        "дуже", "добре", "слово", "людина", "час", "річ", "світ", "дім", "рука", "очі",
         "любов", "життя", "день", "ніч", "рік", "друг", "син", "донька", "мати", "батько",
-        "привіт", "дякую", "так", "ні", "може", "треба", "було", "буде", "є", "немає"
+        "привіт", "дякую", "може", "треба", "було", "буде", "немає"
     };
 
     private static List<string> GetLocalSuggestions(string input, string language)
