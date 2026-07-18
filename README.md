@@ -33,6 +33,14 @@
 
 Type a word, get results. That simple.
 
+## What's New (v1.0.3)
+
+- 💡 **Predictive Spelling Lookup** — when no definitions are found, the extension now shows "Did you mean?" suggestions ranked by fuzzy similarity. Click a suggestion to instantly look up that word.
+- Multi-source suggestion engine: **Datamuse API** (English & Spanish), **Wiktionary opensearch** (12+ languages), and **local Levenshtein fallback** (offline).
+- New **Enable Spelling Suggestions** toggle in Settings (on by default).
+- Levenshtein distance scoring with proportional thresholds and prefix-match bonus.
+- Localized "Did you mean?" strings for en-US and fr-FR.
+
 ## What's New (v1.0.2)
 
 - Expanded dictionary experience with support for: English, French, Chinese and Ukrainian.
