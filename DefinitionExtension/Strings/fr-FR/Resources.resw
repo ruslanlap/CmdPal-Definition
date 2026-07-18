@@ -90,4 +90,13 @@
   <data name="OpenSource" xml:space="preserve">
     <value>Ouvrir la source</value>
   </data>
+  <data name="SuggestionsForWord" xml:space="preserve">
+    <value>Vouliez-vous dire « {0} » ?</value>
+  </data>
+  <data name="SpellingSuggestionSubtitle" xml:space="preserve">
+    <value>Suggestion orthographique — cliquer pour chercher</value>
+  </data>
+  <data name="SpellingSuggestionTag" xml:space="preserve">
+    <value>suggestion</value>
+  </data>
 </root>

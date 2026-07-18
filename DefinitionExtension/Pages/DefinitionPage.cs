@@ -17,7 +17,7 @@ namespace DefinitionExtension.Pages;
 
 internal sealed partial class DefinitionPage : DynamicListPage
 {
-    private List<DefinitionListItem> _items = new();
+    private List<IListItem> _items = new();
     private readonly DictionaryService _dictionaryService;
     private readonly SettingsManager _settingsManager;
     private CancellationTokenSource? _currentSearchCts;
@@ -135,6 +135,24 @@ internal sealed partial class DefinitionPage : DynamicListPage
 
         if (entries.Count == 0)
         {
+            // Fetch predictive spelling suggestions for Latin-script words
+            var suggestions = await _dictionaryService.GetSpellingSuggestionsAsync(word, cancellationToken);
+
+            if (cancellationToken.IsCancellationRequested)
+                return;
+
+            if (suggestions.Count > 0)
+            {
+                foreach (var suggestion in suggestions)
+                    _items.Add(new SuggestionListItem(suggestion, this));
+
+                IsLoading = false;
+                _isQueryRunning = false;
+                Title = string.Format(_resourceLoader.GetString("SuggestionsForWord"), word);
+                RaiseItemsChanged(_items.Count);
+                return;
+            }
+
             HandleError(
                 string.Format(_resourceLoader.GetString("NoDefinitionsFor"), word),
                 _resourceLoader.GetString("CheckSpelling"));
@@ -271,6 +289,24 @@ internal sealed partial class DefinitionPage : DynamicListPage
         };
         _items.Clear();
         RaiseItemsChanged(0);
+    }
+
+    /// <summary>
+    /// Triggers a definition lookup for the given word. Used by spelling suggestion
+    /// items so the user can click a suggestion and immediately see its definition.
+    /// </summary>
+    public void LookupWord(string word)
+    {
+        if (string.IsNullOrWhiteSpace(word))
+            return;
+
+        var trimmed = word.Trim();
+        _currentSearchCts?.Cancel();
+        _currentSearchCts = new CancellationTokenSource();
+        _isQueryRunning = false;
+        _lastSearch = trimmed;
+
+        _ = UpdateListAsync(trimmed, _currentSearchCts.Token);
     }
 
     public override IListItem[] GetItems() => _items.ToArray();

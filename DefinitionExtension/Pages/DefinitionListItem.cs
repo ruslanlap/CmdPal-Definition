@@ -16,7 +16,8 @@ public enum DefinitionItemType
     Synonym,
     Antonym,
     Phonetic,
-    WordHeader
+    WordHeader,
+    Suggestion,
 }
 
 internal sealed partial class DefinitionListItem : ListItem
@@ -70,6 +71,7 @@ internal sealed partial class DefinitionListItem : ListItem
         DefinitionItemType.Antonym => new IconInfo("\uE7BA"),     // Switch icon
         DefinitionItemType.Phonetic => new IconInfo("\uE767"),    // Volume icon
         DefinitionItemType.WordHeader => new IconInfo("\uE82D"),  // Dictionary icon
+        DefinitionItemType.Suggestion => new IconInfo("\uE721"),  // Search icon
         _ => new IconInfo("\uE82D"),
     };
 
@@ -187,5 +189,46 @@ internal static class ClipboardHelper
         {
             Debug.WriteLine($"[Definition CmdPal] Clipboard error: {ex.Message}");
         }
+    }
+}
+
+/// <summary>
+/// A list item representing a predictive spelling suggestion.
+/// Clicking it immediately looks up the definition of the suggested word.
+/// </summary>
+internal sealed partial class SuggestionListItem : ListItem
+{
+    private static readonly ResourceLoader _resourceLoader = new();
+
+    public SuggestionListItem(string suggestedWord, DefinitionPage page)
+        : base(new SearchWordCommand(page, suggestedWord))
+    {
+        Title = suggestedWord;
+        Subtitle = _resourceLoader.GetString("SpellingSuggestionSubtitle");
+        Icon = new IconInfo("\uE721"); // Search icon
+        Tags = [new Tag(_resourceLoader.GetString("SpellingSuggestionTag"))];
+    }
+}
+
+/// <summary>
+/// Command that triggers a definition lookup for a specific word on the parent page.
+/// </summary>
+internal sealed partial class SearchWordCommand : InvokableCommand
+{
+    private readonly DefinitionPage _page;
+    private readonly string _word;
+
+    public SearchWordCommand(DefinitionPage page, string word)
+    {
+        _page = page;
+        _word = word;
+        Name = word;
+        Icon = new IconInfo("\uE8BD"); // Book icon
+    }
+
+    public override ICommandResult Invoke()
+    {
+        _page.LookupWord(_word);
+        return CommandResult.KeepOpen();
     }
 }

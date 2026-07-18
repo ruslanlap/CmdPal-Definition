@@ -86,3 +86,18 @@ public class LicenseInfo
 public partial class DictionaryEntryContext : JsonSerializerContext
 {
 }
+
+public class DatamuseWord
+{
+    [JsonPropertyName("word")]
+    public string? Word { get; set; }
+
+    [JsonPropertyName("score")]
+    public int Score { get; set; }
+}
+
+[JsonSerializable(typeof(List<DatamuseWord>))]
+[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
+public partial class DatamuseContext : JsonSerializerContext
+{
+}

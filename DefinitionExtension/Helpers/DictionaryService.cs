@@ -18,6 +18,7 @@ public class DictionaryService
     private const int MaxCacheSize = 100;
 
     private readonly Dictionary<string, IDictionaryProvider> _providers;
+    private readonly SpellCheckService _spellCheckService;
 
     private static HttpClient CreateHttpClient()
     {
@@ -40,6 +41,7 @@ public class DictionaryService
             { "uk", new UkrainianDictionaryProvider(_httpClient) },
             { "zh", new ChineseDictionaryProvider(_httpClient) }
         };
+        _spellCheckService = new SpellCheckService(_httpClient);
     }
 
     /// <summary>
@@ -129,5 +131,20 @@ public class DictionaryService
     public void ClearCache()
     {
         _cache.Clear();
+    }
+
+    /// <summary>
+    /// Returns predictive spelling suggestions for a Latin-script word when no
+    /// exact dictionary match is found.  Only fires for Latin-script input.
+    /// </summary>
+    public async Task<List<string>> GetSpellingSuggestionsAsync(
+        string word,
+        CancellationToken cancellationToken = default)
+    {
+        var script = ScriptDetector.DetectScript(word);
+        if (script != ScriptType.Latin && script != ScriptType.Mixed)
+            return new List<string>();
+
+        return await _spellCheckService.GetSuggestionsAsync(word, cancellationToken);
     }
 }
