@@ -51,6 +51,7 @@ Type a word, get results. That simple.
 | **Copy to Clipboard** | Click any result to copy |
 | **Wiktionary Integration** | Right-click context menu to open in Wiktionary |
 | **Configurable** | Settings for language, result count, and display options |
+| **Predictive Spelling** | "Did you mean?" suggestions when no definitions found — powered by Datamuse API, Wiktionary opensearch, and Levenshtein fuzzy matching |
 | **Smart Caching** | In-memory cache for instant repeat lookups |
 | **Debounced Search** | 300ms debounce to minimize API calls while typing |
 
@@ -165,6 +166,8 @@ CmdPal-Definition/
     │   └── DefinitionListItem.cs       # ListItem for each result
     ├── Helpers/
     │   ├── DictionaryService.cs        # HTTP client + caching layer
+    │   ├── SuggestionService.cs        # Predictive spelling (Datamuse + Wiktionary + fuzzy)
+    │   ├── FuzzyMatcher.cs             # Levenshtein distance & similarity scoring
     │   ├── SettingsManager.cs          # Settings UI via CmdPal settings API
     │   ├── Models.cs                   # JSON data models
     │   └── DefinitionExtensionHost.cs  # Extension host singleton

@@ -19,6 +19,7 @@ internal sealed partial class DefinitionPage : DynamicListPage
 {
     private List<DefinitionListItem> _items = new();
     private readonly DictionaryService _dictionaryService;
+    private readonly SuggestionService _suggestionService;
     private readonly SettingsManager _settingsManager;
     private CancellationTokenSource? _currentSearchCts;
     private string _lastSearch = string.Empty;
@@ -31,6 +32,8 @@ internal sealed partial class DefinitionPage : DynamicListPage
     {
         _settingsManager = settingsManager;
         _dictionaryService = dictionaryService;
+        // Reuse a shared HttpClient with timeout & headers consistent with DictionaryService
+        _suggestionService = new SuggestionService(CreateSuggestionHttpClient());
         settingsManager.ExtensionHomePage = this;
 
         Icon = _logoIcon;
@@ -40,6 +43,18 @@ internal sealed partial class DefinitionPage : DynamicListPage
         PlaceholderText = _resourceLoader.GetString("PlaceholderText");
 
         ReloadExtensionState();
+    }
+
+    private static HttpClient CreateSuggestionHttpClient()
+    {
+        var client = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(10) // Bounded timeout — don't block UI on slow networks
+        };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
+        return client;
     }
 
     public void ReloadExtensionState()
@@ -54,7 +69,7 @@ internal sealed partial class DefinitionPage : DynamicListPage
             _ => "English"
         };
 
-        Title = $"{_resourceLoader.GetString("AppTitle")} ({langName})";
+        Title = $\"{_resourceLoader.GetString("AppTitle")} ({langName})";
         EmptyContent = new CommandItem(new NoOpCommand())
         {
             Icon = _logoIcon,
@@ -135,9 +150,17 @@ internal sealed partial class DefinitionPage : DynamicListPage
 
         if (entries.Count == 0)
         {
-            HandleError(
-                string.Format(_resourceLoader.GetString("NoDefinitionsFor"), word),
-                _resourceLoader.GetString("CheckSpelling"));
+            // No definitions found — try to get spelling suggestions (if enabled)
+            if (_settingsManager.EnableSpellingSuggestions)
+            {
+                await ShowSuggestionsAsync(word, cancellationToken);
+            }
+            else
+            {
+                HandleError(
+                    string.Format(_resourceLoader.GetString("NoDefinitionsFor"), word),
+                    _resourceLoader.GetString("CheckSpelling"));
+            }
             return;
         }
 
@@ -271,6 +294,77 @@ internal sealed partial class DefinitionPage : DynamicListPage
         };
         _items.Clear();
         RaiseItemsChanged(0);
+    }
+
+    /// <summary>
+    /// When no definitions are found, fetches spelling suggestions and displays them
+    /// as clickable items that re-trigger a lookup for the suggested word.
+    /// </summary>
+    private async Task ShowSuggestionsAsync(string word, CancellationToken cancellationToken)
+    {
+        var suggestions = await _suggestionService.GetSuggestionsAsync(
+            word, _settingsManager.Language, cancellationToken);
+
+        // Check if a new search has started while we were fetching suggestions
+        if (cancellationToken.IsCancellationRequested)
+            return;
+
+        _items.Clear();
+
+        if (suggestions.Count == 0)
+        {
+            // No suggestions either — show the standard "no definitions" error
+            HandleError(
+                string.Format(_resourceLoader.GetString("NoDefinitionsFor"), word),
+                _resourceLoader.GetString("CheckSpelling"));
+            return;
+        }
+
+        // Show "Did you mean?" header using the top-ranked suggestion
+        Title = string.Format(_resourceLoader.GetString("DidYouMean"), suggestions[0]);
+
+        foreach (var suggestion in suggestions)
+        {
+            var similarity = FuzzyMatcher.GetSimilarityScore(word, suggestion);
+            var subtitle = similarity > 0.8
+                ? _resourceLoader.GetString("CloseMatch")
+                : _resourceLoader.GetString("PossibleMatch");
+
+            _items.Add(new DefinitionListItem(
+                title: suggestion,
+                subtitle: subtitle,
+                itemType: DefinitionItemType.Suggestion,
+                command: new SearchWordCommand(suggestion, this),
+                textToCopy: suggestion,
+                word: suggestion,
+                icon: new IconInfo("\uE721"),
+                tags: new[] { new Tag("suggestion") }));
+        }
+
+        IsLoading = false;
+        _isQueryRunning = false;
+        RaiseItemsChanged(_items.Count);
+    }
+
+    /// <summary>
+    /// Triggers a definition lookup for the given word. Used by spelling suggestion
+    /// items so the user can click a suggestion and immediately see its definition.
+    /// Cancels any in-flight request, resets query state, and re-enters UpdateListAsync.
+    /// </summary>
+    public void LookupWord(string word)
+    {
+        if (string.IsNullOrWhiteSpace(word))
+            return;
+
+        var trimmed = word.Trim();
+
+        // Cancel any in-flight request and reset state for a fresh lookup
+        _currentSearchCts?.Cancel();
+        _currentSearchCts = new CancellationTokenSource();
+        _isQueryRunning = false;
+        _lastSearch = trimmed;
+
+        _ = UpdateListAsync(trimmed, _currentSearchCts.Token);
     }
 
     public override IListItem[] GetItems() => _items.ToArray();

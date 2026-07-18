@@ -90,4 +90,13 @@
   <data name="OpenSource" xml:space="preserve">
     <value>Ouvrir la source</value>
   </data>
+  <data name="DidYouMean" xml:space="preserve">
+    <value>Vouliez-vous dire « {0} » ?</value>
+  </data>
+  <data name="CloseMatch" xml:space="preserve">
+    <value>Correspondance proche — cliquez pour rechercher</value>
+  </data>
+  <data name="PossibleMatch" xml:space="preserve">
+    <value>Correspondance possible — cliquez pour rechercher</value>
+  </data>
 </root>
