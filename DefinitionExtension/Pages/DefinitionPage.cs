@@ -21,9 +21,9 @@ internal sealed partial class DefinitionPage : DynamicListPage
     private readonly DictionaryService _dictionaryService;
     private readonly SuggestionService _suggestionService;
     private readonly SettingsManager _settingsManager;
+    private static readonly HttpClient _suggestionHttpClient = CreateSuggestionHttpClient();
     private CancellationTokenSource? _currentSearchCts;
     private string _lastSearch = string.Empty;
-    private bool _isQueryRunning;
 
     private readonly IconInfo _logoIcon = new("\uE82D");
     private static readonly ResourceLoader _resourceLoader = new();
@@ -32,8 +32,7 @@ internal sealed partial class DefinitionPage : DynamicListPage
     {
         _settingsManager = settingsManager;
         _dictionaryService = dictionaryService;
-        // Reuse a shared HttpClient with timeout & headers consistent with DictionaryService
-        _suggestionService = new SuggestionService(CreateSuggestionHttpClient());
+        _suggestionService = new SuggestionService(_suggestionHttpClient);
         settingsManager.ExtensionHomePage = this;
 
         Icon = _logoIcon;
@@ -81,6 +80,7 @@ internal sealed partial class DefinitionPage : DynamicListPage
 
     public override async void UpdateSearchText(string oldSearch, string newSearch)
     {
+        CancellationTokenSource? searchCts = null;
         try
         {
             if (_lastSearch == newSearch)
@@ -98,8 +98,9 @@ internal sealed partial class DefinitionPage : DynamicListPage
 
             // Debounce: wait briefly before sending the request
             _currentSearchCts?.Cancel();
-            _currentSearchCts = new CancellationTokenSource();
-            var token = _currentSearchCts.Token;
+            searchCts = new CancellationTokenSource();
+            _currentSearchCts = searchCts;
+            var token = searchCts.Token;
 
             await Task.Delay(300, token);
 
@@ -124,17 +125,17 @@ internal sealed partial class DefinitionPage : DynamicListPage
         }
         finally
         {
-            IsLoading = false;
-            _isQueryRunning = false;
+            // A canceled, older query must not clear the loading state of the
+            // replacement query that is now using a different cancellation source.
+            if (ReferenceEquals(_currentSearchCts, searchCts))
+            {
+                IsLoading = false;
+            }
         }
     }
 
     private async Task UpdateListAsync(string word, CancellationToken cancellationToken)
     {
-        if (_isQueryRunning)
-            return;
-
-        _isQueryRunning = true;
         _items.Clear();
         IsLoading = true;
         RaiseItemsChanged(0);
@@ -168,7 +169,6 @@ internal sealed partial class DefinitionPage : DynamicListPage
         _items.Clear();
         _items.AddRange(items);
         IsLoading = false;
-        _isQueryRunning = false;
         Title = string.Format(_resourceLoader.GetString("ResultsTitle"), word, _items.Count);
         RaiseItemsChanged(_items.Count);
     }
@@ -285,7 +285,6 @@ internal sealed partial class DefinitionPage : DynamicListPage
     private void HandleError(string title, string message)
     {
         IsLoading = false;
-        _isQueryRunning = false;
         EmptyContent = new CommandItem(new NoOpCommand())
         {
             Icon = new IconInfo("\uE946"),
@@ -342,7 +341,6 @@ internal sealed partial class DefinitionPage : DynamicListPage
         }
 
         IsLoading = false;
-        _isQueryRunning = false;
         RaiseItemsChanged(_items.Count);
     }
 
@@ -361,7 +359,6 @@ internal sealed partial class DefinitionPage : DynamicListPage
         // Cancel any in-flight request and reset state for a fresh lookup
         _currentSearchCts?.Cancel();
         _currentSearchCts = new CancellationTokenSource();
-        _isQueryRunning = false;
         _lastSearch = trimmed;
 
         _ = UpdateListAsync(trimmed, _currentSearchCts.Token);
