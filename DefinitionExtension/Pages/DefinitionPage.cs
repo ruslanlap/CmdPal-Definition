@@ -69,7 +69,7 @@ internal sealed partial class DefinitionPage : DynamicListPage
             _ => "English"
         };
 
-        Title = $\"{_resourceLoader.GetString("AppTitle")} ({langName})";
+        Title = $"{_resourceLoader.GetString("AppTitle")} ({langName})";
         EmptyContent = new CommandItem(new NoOpCommand())
         {
             Icon = _logoIcon,
