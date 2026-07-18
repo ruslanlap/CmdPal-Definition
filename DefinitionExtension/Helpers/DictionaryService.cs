@@ -134,8 +134,8 @@ public class DictionaryService
     }
 
     /// <summary>
-    /// Returns predictive spelling suggestions for a Latin-script word when no
-    /// exact dictionary match is found.  Only fires for Latin-script input.
+    /// Returns predictive spelling suggestions for a Latin-script or mixed-script word when no
+    /// exact dictionary match is found.  Only fires for Latin-script or mixed-script input.
     /// </summary>
     public async Task<List<string>> GetSpellingSuggestionsAsync(
         string word,

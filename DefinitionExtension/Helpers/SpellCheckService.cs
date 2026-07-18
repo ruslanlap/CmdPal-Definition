@@ -38,7 +38,8 @@ internal class SpellCheckService
 
         try
         {
-            var url = $"{DatamuseSpellingBase}{Uri.EscapeDataString(word.Trim())}&max={MaxSuggestions}";
+            var trimmedWord = word.Trim();
+            var url = $"{DatamuseSpellingBase}{Uri.EscapeDataString(trimmedWord)}&max={MaxSuggestions}";
             using var response = await _httpClient.GetAsync(url, token);
 
             if (!response.IsSuccessStatusCode)
@@ -51,7 +52,7 @@ internal class SpellCheckService
 
             return words?
                 .Where(w => !string.IsNullOrWhiteSpace(w.Word) &&
-                            !string.Equals(w.Word, word, StringComparison.OrdinalIgnoreCase))
+                            !string.Equals(w.Word, trimmedWord, StringComparison.OrdinalIgnoreCase))
                 .Select(w => w.Word!)
                 .Take(MaxSuggestions)
                 .ToList()

@@ -148,7 +148,7 @@ internal sealed partial class DefinitionPage : DynamicListPage
 
                 IsLoading = false;
                 _isQueryRunning = false;
-                Title = string.Format(_resourceLoader.GetString("SuggestionsForWord"), word);
+                Title = string.Format(_resourceLoader.GetString("SuggestionsForWord"), suggestions[0]);
                 RaiseItemsChanged(_items.Count);
                 return;
             }
