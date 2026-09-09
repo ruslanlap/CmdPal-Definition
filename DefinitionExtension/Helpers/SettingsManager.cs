@@ -10,7 +10,7 @@ namespace DefinitionExtension.Helpers;
 public class SettingsManager : JsonSettingsManager
 {
     private readonly TextSetting _apiEndpoint = new("apiEndpoint",
-        Settings.DefaultEnglishApiEndpoint)
+        ApiSettings.DefaultEnglishApiEndpoint)
     {
         Label = "API Endpoint",
         Description = "Dictionary API endpoint URL",
@@ -99,7 +99,7 @@ public class SettingsManager : JsonSettingsManager
         {
             var lang = _language.Value ?? "en";
             var customEndpoint = _apiEndpoint.Value ?? string.Empty;
-            var normalized = Settings.NormalizeEnglishApiEndpoint(customEndpoint);
+            var normalized = ApiSettings.NormalizeEnglishApiEndpoint(customEndpoint);
             if (!string.IsNullOrWhiteSpace(normalized) &&
                 !normalized.StartsWith("https://api.dictionaryapi.dev"))
             {

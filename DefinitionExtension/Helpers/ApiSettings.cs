@@ -3,7 +3,7 @@
 
 namespace DefinitionExtension.Helpers;
 
-internal static class Settings
+internal static class ApiSettings
 {
     public const string DefaultEnglishApiEndpoint = "https://freedictionaryapi.com/api/v1/entries/en/";
     public const string LegacyEnglishApiEndpoint = "https://api.dictionaryapi.dev/api/v2/entries/en/";

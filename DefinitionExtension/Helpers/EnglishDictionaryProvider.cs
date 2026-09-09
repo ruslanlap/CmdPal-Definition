@@ -63,7 +63,7 @@ internal class EnglishDictionaryProvider : IDictionaryProvider
 
     private async Task<List<DictionaryEntry>> LookupConfiguredApiAsync(string word, CancellationToken token)
     {
-        var endpoint = _apiEndpoint ?? Settings.DefaultEnglishApiEndpoint;
+        var endpoint = _apiEndpoint ?? ApiSettings.DefaultEnglishApiEndpoint;
         var requestUrl = $"{endpoint.TrimEnd('/')}/{Uri.EscapeDataString(word.Trim())}";
 
         using var response = await _httpClient.GetAsync(requestUrl, token);
@@ -178,7 +178,7 @@ internal class EnglishDictionaryProvider : IDictionaryProvider
             .SelectMany(entry => entry.Pronunciations ?? new List<FreeDictionaryPronunciation>())
             .Where(pronunciation => !string.IsNullOrWhiteSpace(pronunciation?.Text))
             .GroupBy(pronunciation => pronunciation.Text, StringComparer.Ordinal)
-            .Select(group => new Phonetic { Text = group.Key })
+            .Select(group => new PhoneticInfo { Text = group.Key })
             .ToList();
 
         var meanings = response.Entries
