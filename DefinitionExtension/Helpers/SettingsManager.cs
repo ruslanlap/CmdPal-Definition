@@ -10,7 +10,7 @@ namespace DefinitionExtension.Helpers;
 public class SettingsManager : JsonSettingsManager
 {
     private readonly TextSetting _apiEndpoint = new("apiEndpoint",
-        "https://api.dictionaryapi.dev/api/v2/entries/en/")
+        Settings.DefaultEnglishApiEndpoint)
     {
         Label = "API Endpoint",
         Description = "Dictionary API endpoint URL",
@@ -99,11 +99,15 @@ public class SettingsManager : JsonSettingsManager
         {
             var lang = _language.Value ?? "en";
             var customEndpoint = _apiEndpoint.Value ?? string.Empty;
-            if (!string.IsNullOrWhiteSpace(customEndpoint) &&
-                !customEndpoint.StartsWith("https://api.dictionaryapi.dev"))
+            var normalized = Settings.NormalizeEnglishApiEndpoint(customEndpoint);
+            if (!string.IsNullOrWhiteSpace(normalized) &&
+                !normalized.StartsWith("https://api.dictionaryapi.dev"))
             {
-                return customEndpoint;
+                return normalized;
             }
+            // The default and legacy URLs are English-only endpoints. Non-en
+            // callers fall back to per-language placeholder; providers for
+            // fr/uk/zh use their own endpoints independently of this property.
             return $"https://api.dictionaryapi.dev/api/v2/entries/{lang}/";
         }
     }

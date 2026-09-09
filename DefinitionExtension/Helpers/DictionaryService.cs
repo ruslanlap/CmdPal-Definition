@@ -35,7 +35,7 @@ public class DictionaryService
     {
         _providers = new Dictionary<string, IDictionaryProvider>(StringComparer.OrdinalIgnoreCase)
         {
-            { "en", new EnglishDictionaryProvider(_httpClient) },
+            { "en", new EnglishDictionaryProvider(_httpClient, Settings.DefaultEnglishApiEndpoint) },
             { "fr", new FrenchDictionaryProvider(_httpClient) },
             { "uk", new UkrainianDictionaryProvider(_httpClient) },
             { "zh", new ChineseDictionaryProvider(_httpClient) }
