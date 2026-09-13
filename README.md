@@ -123,6 +123,8 @@ winget install "Definition for Command Palette"
 
 Download the latest `.msixbundle` from [Releases](https://github.com/ruslanlap/CmdPal-Definition/releases/latest), then:
 
+> This project uses SignPath Foundation for code signing.
+
 ```powershell
 Add-AppPackage -Path DefinitionForCommandPalette.msixbundle
 ```
