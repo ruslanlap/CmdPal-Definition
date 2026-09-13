@@ -123,13 +123,13 @@ jobs:
 
     steps:
       - name: Download x64 MSIX
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: msix-x64
           path: msix-x64
 
       - name: Download ARM64 MSIX
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: msix-arm64
           path: msix-arm64
@@ -241,7 +241,7 @@ jobs:
 
     steps:
       - name: Download MSIX Bundle
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: msixbundle
           path: bundle
@@ -291,7 +291,7 @@ jobs:
 
     steps:
       - name: Download MSIX Bundle
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: msixbundle
           path: bundle
