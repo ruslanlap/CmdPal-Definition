@@ -171,34 +171,20 @@ jobs:
           name: msixbundle-unsigned
           path: bundle-output/DefinitionForCommandPalette.msixbundle
 
-      - name: Select signing provider
-        id: signing_provider
+      - name: Preflight SignPath config
         shell: pwsh
         env:
           SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
           SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
           SIGNPATH_PROJECT_SLUG: ${{ vars.SIGNPATH_PROJECT_SLUG }}
           SIGNPATH_SIGNING_POLICY_SLUG: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
-          SIGNING_CERT_BASE64: ${{ secrets.SIGNING_CERT_BASE64 }}
         run: |
-          $hasSignPath =
-            -not [string]::IsNullOrWhiteSpace($env:SIGNPATH_API_TOKEN) -and
-            -not [string]::IsNullOrWhiteSpace($env:SIGNPATH_ORGANIZATION_ID) -and
-            -not [string]::IsNullOrWhiteSpace($env:SIGNPATH_PROJECT_SLUG) -and
-            -not [string]::IsNullOrWhiteSpace($env:SIGNPATH_SIGNING_POLICY_SLUG)
-
-          if ($hasSignPath) {
-            "provider=signpath" >> $env:GITHUB_OUTPUT
-            Write-Host "Signing provider: SignPath Foundation"
-          } elseif (-not [string]::IsNullOrWhiteSpace($env:SIGNING_CERT_BASE64)) {
-            "provider=pfx" >> $env:GITHUB_OUTPUT
-            Write-Host "Signing provider: trusted PFX certificate"
-          } else {
-            throw "No trusted signing provider configured. Configure SignPath credentials, or SIGNING_CERT_BASE64 + SIGNING_CERT_PASSWORD with a publicly trusted code-signing certificate."
-          }
+          if ([string]::IsNullOrWhiteSpace($env:SIGNPATH_API_TOKEN)) { throw "Missing secret SIGNPATH_API_TOKEN" }
+          if ([string]::IsNullOrWhiteSpace($env:SIGNPATH_ORGANIZATION_ID)) { throw "Missing variable SIGNPATH_ORGANIZATION_ID" }
+          if ([string]::IsNullOrWhiteSpace($env:SIGNPATH_PROJECT_SLUG)) { throw "Missing variable SIGNPATH_PROJECT_SLUG" }
+          if ([string]::IsNullOrWhiteSpace($env:SIGNPATH_SIGNING_POLICY_SLUG)) { throw "Missing variable SIGNPATH_SIGNING_POLICY_SLUG" }
 
       - name: Sign bundle via SignPath Foundation
-        if: steps.signing_provider.outputs.provider == 'signpath'
         id: signpath_sign
         uses: signpath/github-action-submit-signing-request@v2
         with:
@@ -210,8 +196,7 @@ jobs:
           wait-for-completion: true
           output-artifact-directory: 'bundle-signed'
 
-      - name: Normalize SignPath signed bundle
-        if: steps.signing_provider.outputs.provider == 'signpath'
+      - name: Normalize signed bundle path
         shell: pwsh
         run: |
           $signed = Get-ChildItem -Path "bundle-signed" -Recurse -Filter "*.msixbundle" | Select-Object -First 1
@@ -220,28 +205,7 @@ jobs:
             exit 1
           }
           Copy-Item -Path $signed.FullName -Destination "bundle-output/DefinitionForCommandPalette.msixbundle" -Force
-
-      - name: Sign bundle with trusted PFX
-        if: steps.signing_provider.outputs.provider == 'pfx'
-        shell: pwsh
-        env:
-          SIGNING_CERT_BASE64: ${{ secrets.SIGNING_CERT_BASE64 }}
-          SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:SIGNING_CERT_PASSWORD)) {
-            throw "Missing secret SIGNING_CERT_PASSWORD"
-          }
-
-          $certPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
-          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:SIGNING_CERT_BASE64))
-
-          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
-            Sort-Object { [version]$_.Directory.Parent.Name } -Descending |
-            Select-Object -First 1
-          if (-not $signtool) { throw "signtool.exe not found" }
-
-          & $signtool.FullName sign /fd SHA256 /f $certPath /p $env:SIGNING_CERT_PASSWORD /tr http://timestamp.digicert.com /td SHA256 "bundle-output\DefinitionForCommandPalette.msixbundle"
-          if ($LASTEXITCODE -ne 0) { throw "signtool failed with exit code $LASTEXITCODE" }
+          Write-Host "Using signed bundle: $($signed.FullName)"
 
       - name: Verify signature and extract SignatureSha256
         shell: pwsh
