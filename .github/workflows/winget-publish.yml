@@ -37,7 +37,9 @@ jobs:
     runs-on: windows-latest
     if: >
       github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.event == 'release'
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.event == 'release' &&
+       github.event.workflow_run.conclusion == 'success')
 
     steps:
       - name: Checkout code
@@ -48,49 +50,102 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          MANUAL_RELEASE_TAG: ${{ github.event.inputs.release_tag }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ github.event.inputs.release_tag }}"
+            TAG="$MANUAL_RELEASE_TAG"
           else
             TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name')
           fi
-          TAG_VERSION="${TAG#v}"
-          echo "TAG=$TAG" >> $GITHUB_OUTPUT
-          echo "TAG_VERSION=$TAG_VERSION" >> $GITHUB_OUTPUT
-          echo "Resolved tag: $TAG (version $TAG_VERSION)"
 
-      - name: Verify release asset exists
-        shell: bash
-        run: |
-          TAG="${{ steps.get_release.outputs.TAG }}"
-          URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/DefinitionForCommandPalette.msixbundle"
-          STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "$URL")
-          if [ "$STATUS" != "200" ] && [ "$STATUS" != "302" ]; then
-            echo "::error::Release asset not found (HTTP $STATUS): $URL"
+          if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::Invalid release tag: $TAG"
             exit 1
           fi
-          echo "✓ MSIX bundle asset verified for $TAG"
 
-      - name: Package winget manifests
+          TAG_VERSION="${TAG#v}"
+          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
+          echo "TAG_VERSION=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag: $TAG (version $TAG_VERSION)"
+
+      - name: Download release bundle
         shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.get_release.outputs.TAG }}
         run: |
-          $tag = "${{ steps.get_release.outputs.TAG }}"
-          $tagVersion = "${{ steps.get_release.outputs.TAG_VERSION }}"
-
-          if (-not (Test-Path winget)) {
-            Write-Host "::error::No winget/ directory at repo root — cannot package manifests."
-            exit 1
+          $tag = $env:RELEASE_TAG
+          $url = "https://github.com/${{ github.repository }}/releases/download/$tag/DefinitionForCommandPalette.msixbundle"
+          Invoke-WebRequest -Uri $url -OutFile DefinitionForCommandPalette.msixbundle
+          if (-not (Test-Path DefinitionForCommandPalette.msixbundle)) {
+            throw "Release asset download failed: $url"
           }
 
-          $manifestFiles = Get-ChildItem -Path winget -Recurse -File
-          if ($manifestFiles.Count -eq 0) {
-            Write-Host "::error::No manifest files under winget/."
-            exit 1
+      - name: Generate current winget manifests
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.get_release.outputs.TAG }}
+          RELEASE_TAG_VERSION: ${{ steps.get_release.outputs.TAG_VERSION }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $tagVersion = $env:RELEASE_TAG_VERSION
+          $parts = @($tagVersion.Split('.'))
+          while ($parts.Count -lt 4) { $parts += '0' }
+          $packageVersion = ($parts[0..3] -join '.')
+          $url = "https://github.com/${{ github.repository }}/releases/download/$tag/DefinitionForCommandPalette.msixbundle"
+          $installerHash = (Get-FileHash DefinitionForCommandPalette.msixbundle -Algorithm SHA256).Hash
+
+          $extractDir = Join-Path $env:RUNNER_TEMP "bundle-signature"
+          if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }
+          [System.IO.Compression.ZipFile]::ExtractToDirectory(
+            (Resolve-Path DefinitionForCommandPalette.msixbundle),
+            $extractDir
+          )
+          $sigFile = Join-Path $extractDir "AppxSignature.p7x"
+          if (-not (Test-Path $sigFile)) {
+            throw "AppxSignature.p7x not found. Refusing to package an unsigned MSIX bundle for WinGet."
           }
+          $signatureHash = (Get-FileHash $sigFile -Algorithm SHA256).Hash
+
+          $stage = "winget-current"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+
+          $files = @(
+            "ruslanlap.DefinitionForCommandPalette.yaml",
+            "ruslanlap.DefinitionForCommandPalette.installer.yaml",
+            "ruslanlap.DefinitionForCommandPalette.locale.en-US.yaml",
+            "ruslanlap.DefinitionForCommandPalette.locale.fr-FR.yaml"
+          )
+
+          foreach ($name in $files) {
+            $src = Join-Path "winget" $name
+            if (-not (Test-Path $src)) { throw "Missing template manifest: $src" }
+            $text = Get-Content $src -Raw
+            $text = $text -replace '(?m)^PackageVersion:\s*.*$', "PackageVersion: $packageVersion"
+            $text = $text -replace 'winget-manifest\.([^.]+)\.[0-9.]+\.schema\.json', 'winget-manifest.$1.1.12.0.schema.json'
+            $text = $text -replace '(?m)^ManifestVersion:\s*.*$', 'ManifestVersion: 1.12.0'
+
+            if ($name -like '*.installer.yaml') {
+              $text = $text -replace '(?m)^\s*InstallerUrl:\s*.*$', "  InstallerUrl: $url"
+              $text = $text -replace '(?m)^\s*InstallerSha256:\s*.*$', "  InstallerSha256: $installerHash"
+              $text = [regex]::Replace($text, '(?m)^\s*SignatureSha256:\s*.*\r?\n?', '')
+              $needle = "  InstallerSha256: $installerHash"
+              $replacement = "  InstallerSha256: $installerHash`r`n  SignatureSha256: $signatureHash"
+              $text = $text.Replace($needle, $replacement)
+              if ($text -notmatch '(?m)^MinimumOSVersion:') {
+                $text = $text -replace '(?m)^InstallerType:\s*msix\s*$', "MinimumOSVersion: 10.0.19041.0`r`nInstallerType: msix"
+              }
+            }
+
+            Set-Content -Path (Join-Path $stage $name) -Value $text -NoNewline
+          }
+
+          Write-Host "PackageVersion: $packageVersion"
+          Write-Host "InstallerSha256: $installerHash"
+          Write-Host "SignatureSha256: $signatureHash"
 
           $zip = "winget-manifests-$tag.zip"
-          Compress-Archive -Path winget/* -DestinationPath $zip -Force
-          Write-Host "Packaged $($manifestFiles.Count) file(s) into $zip"
+          Compress-Archive -Path "$stage/*" -DestinationPath $zip -Force
+          Write-Host "Packaged exactly 4 current-version manifests into $zip"
 
       - name: Upload winget manifests artifact
         uses: actions/upload-artifact@v4
