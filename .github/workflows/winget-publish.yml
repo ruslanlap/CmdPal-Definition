@@ -37,7 +37,9 @@ jobs:
     runs-on: windows-latest
     if: >
       github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.event == 'release'
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.event == 'release' &&
+       github.event.workflow_run.conclusion == 'success')
 
     steps:
       - name: Checkout code
@@ -48,21 +50,30 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          MANUAL_RELEASE_TAG: ${{ github.event.inputs.release_tag }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ github.event.inputs.release_tag }}"
+            TAG="$MANUAL_RELEASE_TAG"
           else
             TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name')
           fi
+
+          if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::Invalid release tag: $TAG"
+            exit 1
+          fi
+
           TAG_VERSION="${TAG#v}"
-          echo "TAG=$TAG" >> $GITHUB_OUTPUT
-          echo "TAG_VERSION=$TAG_VERSION" >> $GITHUB_OUTPUT
+          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
+          echo "TAG_VERSION=$TAG_VERSION" >> "$GITHUB_OUTPUT"
           echo "Resolved tag: $TAG (version $TAG_VERSION)"
 
       - name: Download release bundle
         shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.get_release.outputs.TAG }}
         run: |
-          $tag = "${{ steps.get_release.outputs.TAG }}"
+          $tag = $env:RELEASE_TAG
           $url = "https://github.com/${{ github.repository }}/releases/download/$tag/DefinitionForCommandPalette.msixbundle"
           Invoke-WebRequest -Uri $url -OutFile DefinitionForCommandPalette.msixbundle
           if (-not (Test-Path DefinitionForCommandPalette.msixbundle)) {
@@ -71,9 +82,12 @@ jobs:
 
       - name: Generate current winget manifests
         shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.get_release.outputs.TAG }}
+          RELEASE_TAG_VERSION: ${{ steps.get_release.outputs.TAG_VERSION }}
         run: |
-          $tag = "${{ steps.get_release.outputs.TAG }}"
-          $tagVersion = "${{ steps.get_release.outputs.TAG_VERSION }}"
+          $tag = $env:RELEASE_TAG
+          $tagVersion = $env:RELEASE_TAG_VERSION
           $parts = @($tagVersion.Split('.'))
           while ($parts.Count -lt 4) { $parts += '0' }
           $packageVersion = ($parts[0..3] -join '.')
