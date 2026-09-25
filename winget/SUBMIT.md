@@ -7,14 +7,13 @@ clean, current-version manifest set after a signed GitHub release is available.
 ## Signing requirement
 
 The distributed `.msixbundle` must be signed by a certificate chain trusted by
-Windows. The release workflow supports either:
-
-- SignPath Foundation via `SIGNPATH_API_TOKEN` plus the SignPath repository variables.
-- A publicly trusted PFX code-signing certificate via `SIGNING_CERT_BASE64` and
-  `SIGNING_CERT_PASSWORD`.
+Windows. The current release workflow uses SignPath Foundation via `SIGNPATH_API_TOKEN`
+plus the SignPath repository variables.
 
 A self-signed certificate is not sufficient for winget validation and produces
-`0x800B0109 / CERT_E_UNTRUSTEDROOT`.
+`0x800B0109 / CERT_E_UNTRUSTEDROOT`. For MSIX, the manifest `Publisher`
+must also match the subject of the code-signing certificate, so do not add a
+generic PFX fallback without handling package identity explicitly.
 
 ## What CI now generates
 
