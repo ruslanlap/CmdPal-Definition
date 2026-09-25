@@ -1,64 +1,56 @@
 # Submitting to winget-pkgs
 
-This repository ships the winget manifests under `winget/`. The CI workflow
-[`.github/workflows/winget-publish.yml`](../.github/workflows/winget-publish.yml)
-packages them into an artifact on every Microsoft Store release, but it does
-**not** open the upstream PR. Submitting the manifests to
-[`microsoft/winget-pkgs`](https://github.com/microsoft/winget-pkgs) is a
-manual step that takes about five minutes.
+The repository keeps four manifest templates under `winget/`. The
+`.github/workflows/winget-publish.yml` workflow turns those templates into a
+clean, current-version manifest set after a signed GitHub release is available.
 
-## Why the workflow doesn't submit
+## Signing requirement
 
-- `wingetcreate new` requires Sharprompt interactive input. It cannot run
-  in CI without a TTY and fails with
-  `Sharprompt requires an interactive environment`.
-- `wingetcreate update` requires the package to already exist in
-  `microsoft/winget-pkgs`. This package does not.
-- The winget-pkgs GitHub App is the recommended path, but configuring it is
-  a separate project.
+The distributed `.msixbundle` must be signed by a certificate chain trusted by
+Windows. The release workflow supports either:
 
-## When you need to do this
+- SignPath Foundation via `SIGNPATH_API_TOKEN` plus the SignPath repository variables.
+- A publicly trusted PFX code-signing certificate via `SIGNING_CERT_BASE64` and
+  `SIGNING_CERT_PASSWORD`.
 
-Every time you bump `PackageVersion` in `winget/*.yaml`. The CI artifact is
-the source of truth — pull it after the Store publish completes.
+A self-signed certificate is not sufficient for winget validation and produces
+`0x800B0109 / CERT_E_UNTRUSTEDROOT`.
 
-## Procedure
+## What CI now generates
 
-1. Wait for the `Publish CmdPal Extension to Microsoft Store` workflow run
-   to complete successfully.
-2. Download the `winget-manifests-<tag>` artifact from the matching
-   `Publish to WinGet` run.
-3. Fork [`microsoft/winget-pkgs`](https://github.com/microsoft/winget-pkgs)
-   if you have not already.
-4. Create a branch named after the package and version:
+For the requested release tag, `Publish to WinGet`:
+
+1. Downloads `DefinitionForCommandPalette.msixbundle` from the GitHub Release.
+2. Computes the bundle `InstallerSha256`.
+3. Extracts `AppxSignature.p7x` and computes `SignatureSha256`.
+4. Normalizes the release tag to a four-part `PackageVersion`.
+5. Updates the manifest schema/version to 1.12.0.
+6. Packages exactly these four current-version files:
+   - `ruslanlap.DefinitionForCommandPalette.yaml`
+   - `ruslanlap.DefinitionForCommandPalette.installer.yaml`
+   - `ruslanlap.DefinitionForCommandPalette.locale.en-US.yaml`
+   - `ruslanlap.DefinitionForCommandPalette.locale.fr-FR.yaml`
+
+Historical folders under `winget/` are intentionally excluded from the
+artifact so a submission cannot accidentally contain multiple package versions.
+
+## Submission procedure
+
+1. Ensure the release workflow completed and the GitHub Release contains the
+   trusted-signed `DefinitionForCommandPalette.msixbundle`.
+2. Run `Publish to WinGet` for that release tag.
+3. Download the `winget-manifests-<tag>` artifact.
+4. Copy the four files into:
+   `manifests/r/ruslanlap/DefinitionForCommandPalette/<PackageVersion>/`
+   in the `microsoft/winget-pkgs` fork.
+5. Validate with:
+   ```powershell
+   winget validate --manifest <manifest-directory>
    ```
-   git checkout -b ruslanlap/DefinitionForCommandPalette-1.0.4
-   ```
-5. Copy the manifests into the canonical path:
-   ```
-   cp winget-manifests-1.0.4.zip /tmp/
-   cd /tmp && unzip winget-manifests-1.0.4.zip -d manifests
-   mkdir -p upstream/manifests/r/ruslanlap/DefinitionForCommandPalette/1.0.4.0
-   cp -r manifests/* upstream/manifests/r/ruslanlap/DefinitionForCommandPalette/1.0.4.0/
-   ```
-6. Update `PackageVersion`, `InstallerUrl`, and `InstallerSha256` in the
-   manifests to match the new release. The current values point at v1.0.0
-   and need to be bumped before each submission.
-7. Validate locally with `winget validate --manifest <path>`.
-8. Commit, push, open a PR upstream.
-9. Watch the validation checks. Common expected labels for this package
-   type (MSIX bundle with no primary executable):
-   - `Validation-Executable-Error`
-   - `Validation-No-Executables`
+6. Commit, push, and open/update the upstream PR.
+7. Wait for the winget validation pipeline and reviewer approval.
 
-   These are routine for MSIX-only packages. Comment on the PR explaining
-   that the install path is `Plugins/DefinitionForCommandPalette` under the
-   PowerToys Run installation directory, and link the relevant section of
-   `deploy.yml` if the moderator asks.
-10. Wait for a moderator to merge. Do not ping more than twice.
-
-## Why hand-write instead of using wingetcreate
-
-Hand-written manifests are easier to review, easier to bump across
-versions, and easier to keep in sync with the rest of this repo's release
-process. The win is small for new packages but compounds across versions.
+For the current v1.0.4 submission, upstream PR #431811 has already confirmed
+that the only remaining validation blocker is the untrusted certificate chain.
+Once a trusted-signed bundle replaces the release asset, regenerate the
+manifests and update that PR with the new hashes.
